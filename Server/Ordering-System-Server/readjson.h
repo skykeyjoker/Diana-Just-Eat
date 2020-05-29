@@ -1,7 +1,6 @@
 #ifndef READJSON_H
 #define READJSON_H
 
-
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -9,7 +8,6 @@
 #include <QJsonParseError>
 #include <QDebug>
 #include "EncryptDecrypt.h"
-
 
 class ReadJson
 {
