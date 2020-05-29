@@ -10,6 +10,8 @@
 #include <QPushButton>
 #include <QDebug>
 #include <QCloseEvent>
+#include <QGroupBox>
+
 
 #include <QSqlDatabase>
 #include <QSqlError>
@@ -20,9 +22,10 @@
 #include <QHeaderView>
 
 #include "readjson.h"
+#include "writejson.h"
 #include "dialogaddrecord.h"
 #include "dialogeditrecord.h"
-//TODO 图片转换
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -50,6 +53,18 @@ public:
     QTableView *_view_Menu;
     QSqlTableModel *_model;
 
+
+    // Config Tab
+    QLineEdit *le_MySqlHost;
+    QLineEdit *le_MySqlName;
+    QLineEdit *le_MySqlUser;
+    QLineEdit *le_MySqlPasswd;
+    QLineEdit *le_MySqlPort;
+
+    QLineEdit *le_TcpHost;
+    QLineEdit *le_TcpPort;
+
+
 public slots:
     void slotBtnEditClicked();
     void slotBtnAddClicked();
@@ -57,6 +72,11 @@ public slots:
 
     void slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
     void slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+
+
+    void slotUpdateBtnClicked();
+    void slotRevBtnClicked();
+
 
     void closeEvent(QCloseEvent *); //重写退出事件
 private:
@@ -69,6 +89,8 @@ private:
     QString _dbUser;
     QString _dbPasswd;
     int _dbPort;
+    QString _tcpHost;
+    int _tcpPort;
 
 };
 #endif // SERVERMAINWINDOW_H

@@ -1,12 +1,44 @@
-#include "readjson.h"
+#include "writejson.h"
 
-ReadJson::ReadJson()
+WriteJson::WriteJson()
 {
 }
 
-bool ReadJson::readFromFile(const QString &fileName)
+bool WriteJson::writeToFile()
 {
-    QFile file(fileName); //打开文件
+    QFile file(QDir::currentPath()+"/config.json");
+    if(!file.open(QIODevice::ReadWrite))
+    {
+        qDebug()<<"无法打开json文件";
+        return false;
+    }
+    QJsonObject obj;
+    _dbHost = XorEncryptDecrypt(_dbHost,19);
+    _dbName = XorEncryptDecrypt(_dbName,19);
+    _dbUser = XorEncryptDecrypt(_dbUser,19);
+    _dbPasswd = XorEncryptDecrypt(_dbPasswd,19);
+
+    obj.insert("dbHost",_dbHost);
+    obj.insert("dbName",_dbName);
+    obj.insert("dbUser",_dbUser);
+    obj.insert("dbPasswd",_dbPasswd);
+    obj.insert("dbPort",_dbPort);
+    obj.insert("tcpHost",_tcpHost);
+    obj.insert("tcpPort",_tcpPort);
+
+    QJsonDocument doc;
+    doc.setObject(obj);
+
+    file.write(doc.toJson());
+    qDebug()<<"write to file";
+    file.close();
+
+    return true;
+}
+/*
+bool WriteJson::writeToFile()
+{
+    //QFile file(fileName); //打开文件
 
     if (!file.open(QIODevice::ReadOnly))
     {
@@ -33,15 +65,11 @@ bool ReadJson::readFromFile(const QString &fileName)
     _dbUser = jsonObj.value("dbUser").toString();
     _dbPasswd = jsonObj.value("dbPasswd").toString();
     _dbPort = jsonObj.value("dbPort").toInt();
-    _tcpHost = jsonObj.value("tcpHost").toString();
-    _tcpPort = jsonObj.value("tcpPort").toInt();
 
     qDebug() << "_dbHost:" << _dbHost;
     qDebug() << "_dbName:" << _dbName;
     qDebug() << "_dbUser:" << _dbUser;
     qDebug() << "_dbPasswd:" << _dbPasswd;
-    qDebug() << "_tcpHost:" << _tcpHost;
-    qDebug() << "_tcpPort:" <<_tcpPort;
 
     //解密
     _dbHost = XorEncryptDecrypt(_dbHost, 19);
@@ -49,49 +77,12 @@ bool ReadJson::readFromFile(const QString &fileName)
     _dbUser = XorEncryptDecrypt(_dbUser, 19);
     _dbPasswd = XorEncryptDecrypt(_dbPasswd, 19);
 
-
     qDebug() << "_dbHost:" << _dbHost;
     qDebug() << "_dbName:" << _dbName;
     qDebug() << "_dbUser:" << _dbUser;
     qDebug() << "_dbPasswd:" << _dbPasswd;
-    qDebug() << "_tcpHost:" << _tcpHost;
-    qDebug() << "_tcpPort:" <<_tcpPort;
-
 
     return true;
 }
+*/
 
-QString ReadJson::getDbHost()
-{
-    return _dbHost;
-}
-
-QString ReadJson::getDbName()
-{
-    return _dbName;
-}
-
-QString ReadJson::getDbUser()
-{
-    return _dbUser;
-}
-
-QString ReadJson::getDbPasswd()
-{
-    return _dbPasswd;
-}
-
-int ReadJson::getDbPort()
-{
-    return _dbPort;
-}
-
-QString ReadJson::getTcpHost()
-{
-    return _tcpHost;
-}
-
-int ReadJson::getTcpPort()
-{
-    return _tcpPort;
-}

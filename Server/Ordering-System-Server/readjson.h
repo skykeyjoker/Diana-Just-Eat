@@ -21,6 +21,8 @@ public:
     QString getDbUser();
     QString getDbPasswd();
     int getDbPort();
+    QString getTcpHost();
+    int getTcpPort();
 
 private:
     //Info from json
@@ -29,6 +31,8 @@ private:
     QString _dbUser;
     QString _dbPasswd;
     int _dbPort;
+    QString _tcpHost;
+    int _tcpPort;
 };
 
 #endif // READJSON_H

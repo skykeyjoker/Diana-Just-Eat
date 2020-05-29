@@ -3,5 +3,7 @@
 	"dbName":"\\awva>@j`gv~",
 	"dbUser":"`xjxvj",
 	"dbPasswd":"`xjxvj!  ==",
-	"dbPort":3306
+	"dbPort":3306,
+	"tcpHost":"127.0.0.1",
+	"tcpPort":8081
 }

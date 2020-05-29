@@ -42,6 +42,8 @@ if(ANDROID)
     dialogeditrecord.cpp
     convertpic.h
     convertpic.cpp
+    writejson.h
+    writejson.cpp
   )
 else()
   add_executable(Ordering-System-Server
@@ -59,6 +61,8 @@ else()
     dialogeditrecord.cpp
     convertpic.h
     convertpic.cpp
+    writejson.h
+    writejson.cpp
   )
 endif()
 

@@ -12,8 +12,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     bool dbRet = connectDb();
     if (!dbRet)
     {
-        QMessageBox::critical(this, "服务端启动失败", "无法连接数据库");
-        exit(1);
+        QMessageBox::critical(this, "服务端启动失败", "无法连接数据库，请编辑目录下的config.json文件！");
     }
 
 
@@ -67,6 +66,97 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     // Init Tab for Config
     //TODO 服务器配置tab
+    QVBoxLayout *layConfig = new QVBoxLayout(ui->tab_Settings);
+
+    QGroupBox *groupMySql = new QGroupBox("数据库设置");
+    QVBoxLayout *layMySql = new QVBoxLayout(groupMySql);
+    QLabel *lb_MySqlHost = new QLabel("MySql服务器地址：");
+    le_MySqlHost = new QLineEdit;
+    QLabel *lb_MySqlPort = new QLabel("MySql服务器端口：");
+    le_MySqlPort = new QLineEdit;
+    QLabel *lb_MySqlName = new QLabel("数据库名称：");
+    le_MySqlName = new QLineEdit;
+    QLabel *lb_MySqlUser = new QLabel("数据库用户名：");
+    le_MySqlUser = new QLineEdit;
+    QLabel *lb_MySqlPasswd = new QLabel("数据库密码：");
+    le_MySqlPasswd = new QLineEdit;
+    QHBoxLayout *layMySqlHost = new QHBoxLayout;
+    layMySqlHost->addWidget(lb_MySqlHost);
+    layMySqlHost->addWidget(le_MySqlHost);
+    layMySqlHost->addStretch(1);
+    QHBoxLayout *layMySqlPort = new QHBoxLayout;
+    layMySqlPort->addWidget(lb_MySqlPort);
+    layMySqlPort->addWidget(le_MySqlPort);
+    layMySqlPort->addStretch(1);
+    QHBoxLayout *layMySqlName = new QHBoxLayout;
+    layMySqlName->addWidget(lb_MySqlName);
+    layMySqlName->addWidget(le_MySqlName);
+    layMySqlName->addStretch(1);
+    QHBoxLayout *layMySqlUser = new QHBoxLayout;
+    layMySqlUser->addWidget(lb_MySqlUser);
+    layMySqlUser->addWidget(le_MySqlUser);
+    layMySqlUser->addStretch(1);
+    QHBoxLayout *layMySqlPasswd = new QHBoxLayout;
+    layMySqlPasswd->addWidget(lb_MySqlPasswd);
+    layMySqlPasswd->addWidget(le_MySqlPasswd);
+    layMySqlPasswd->addStretch(1);
+
+    layMySql->addLayout(layMySqlHost);
+    layMySql->addLayout(layMySqlPort);
+    layMySql->addLayout(layMySqlName);
+    layMySql->addLayout(layMySqlUser);
+    layMySql->addLayout(layMySqlPasswd);
+
+    le_MySqlPasswd->setEchoMode(QLineEdit::Password);
+
+
+    QGroupBox *groupTcp = new QGroupBox("TCP设置");
+    QVBoxLayout *layTcp = new QVBoxLayout(groupTcp);
+    QLabel *lb_TcpHost = new QLabel("TCP服务端IP：");
+    le_TcpHost = new QLineEdit;
+    QLabel *lb_TcpPort = new QLabel("TCP服务端端口：");
+    le_TcpPort = new QLineEdit;
+
+    QHBoxLayout *layTcpHost = new QHBoxLayout;
+    layTcpHost->addWidget(lb_TcpHost);
+    layTcpHost->addWidget(le_TcpHost);
+    layTcpHost->addStretch(1);
+    QHBoxLayout *layTcpPort = new QHBoxLayout;
+    layTcpPort->addWidget(lb_TcpPort);
+    layTcpPort->addWidget(le_TcpPort);
+    layTcpPort->addStretch(8);
+
+    layTcp->addLayout(layTcpHost);
+    layTcp->addLayout(layTcpPort);
+
+
+    QHBoxLayout *layConfigBtns = new QHBoxLayout;
+    QPushButton *btnRevConfig = new QPushButton("恢复设置");
+    QPushButton *btnUpdateConfig = new QPushButton("更新设置");
+    layConfigBtns->addStretch(2);
+    layConfigBtns->addWidget(btnRevConfig);
+    layConfigBtns->addStretch(4);
+    layConfigBtns->addWidget(btnUpdateConfig);
+    layConfigBtns->addStretch(2);
+
+
+    layConfig->addWidget(groupMySql);
+    layConfig->addWidget(groupTcp);
+    layConfig->addLayout(layConfigBtns);
+
+    //初始化配置信息
+    le_MySqlHost->setText(_dbHost);
+    le_MySqlName->setText(_dbName);
+    le_MySqlUser->setText(_dbUser);
+    le_MySqlPort->setText(QString::number(_dbPort));
+    le_MySqlPasswd->setText(_dbPasswd);
+
+    le_TcpHost->setText(_tcpHost);
+    le_TcpPort->setText(QString::number(_tcpPort));
+
+    //绑定两按钮
+    connect(btnUpdateConfig,&QPushButton::clicked,this,&ServerMainWindow::slotUpdateBtnClicked);
+    connect(btnRevConfig,&QPushButton::clicked,this,&ServerMainWindow::slotRevBtnClicked);
 }
 
 ServerMainWindow::~ServerMainWindow()
@@ -91,6 +181,10 @@ bool ServerMainWindow::connectDb()
     _dbUser = dbInfo.getDbUser();
     _dbPasswd = dbInfo.getDbPasswd();
     _dbPort = dbInfo.getDbPort();
+
+    //赋值tcp服务端信息
+    _tcpHost = dbInfo.getTcpHost();
+    _tcpPort = dbInfo.getTcpPort();
 
     db.setHostName(_dbHost);
     db.setDatabaseName(_dbName);
@@ -195,7 +289,7 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
     record.setValue(1,dishName);
     record.setValue(2,dishType);
     record.setValue(3,dishInfo);
-    record.setValue(4,dishPrice.toInt());
+    record.setValue(4,dishPrice.toDouble());
     record.setValue(5,QString::fromUtf8(dishPhoto));
 
     bool bRet = _model->insertRecord(-1,record);
@@ -219,7 +313,7 @@ void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType
     record.setValue(1,dishName);
     record.setValue(2,dishType);
     record.setValue(3,dishInfo);
-    record.setValue(4,dishPrice.toInt());
+    record.setValue(4,dishPrice.toDouble());
     if(dishPhoto!=record.value(5))  //检测图片是否更新
     {
         record.setValue(5,QString::fromUtf8(dishPhoto));
@@ -250,4 +344,61 @@ void ServerMainWindow::closeEvent(QCloseEvent *event)
     }
     else
         event->ignore();
+}
+
+void ServerMainWindow::slotUpdateBtnClicked()
+{
+    if(le_MySqlHost->text().isEmpty()||le_MySqlName->text().isEmpty()||le_MySqlUser->text().isEmpty()||le_MySqlPasswd->text().isEmpty()||le_TcpHost->text().isEmpty()||le_TcpPort->text().isEmpty())
+    {
+        QMessageBox::critical(this,"错误","关键信息不完整！");
+        return;
+    }
+    _dbHost = le_MySqlHost->text();
+    _dbName = le_MySqlName->text();
+    _dbUser = le_MySqlUser->text();
+    _dbPasswd = le_MySqlPasswd->text();
+    _dbPort = le_MySqlPort->text().toInt();
+    _tcpHost = le_TcpHost->text();
+    _tcpPort = le_TcpPort->text().toInt();
+
+    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_tcpHost,_tcpPort);
+    if(!jsonConfig.writeToFile())
+    {
+        QMessageBox::critical(this,"错误","无法更新配置！");
+    }
+
+
+    QSqlDatabase tmpdb = QSqlDatabase::addDatabase("QMYSQL");
+    tmpdb.setHostName(_dbHost);
+    tmpdb.setPort(_dbPort);
+    tmpdb.setUserName(_dbUser);
+    tmpdb.setDatabaseName(_dbName);
+    tmpdb.setPassword(_dbPasswd);
+
+    if(tmpdb.open())
+    {
+        QMessageBox::information(this,"服务器配置信息更新成功！","服务器配置信息更新成功，请重启服务端程序！");
+        exit(0);
+    }
+    else
+    {
+        QMessageBox::critical(this,"无法连接MySql数据库","无法连接MySql数据库，请检查相关信息！");
+        qDebug()<<tmpdb.lastError().text();
+    }
+
+
+
+}
+
+void ServerMainWindow::slotRevBtnClicked()
+{
+    le_MySqlHost->setText(_dbHost);
+    le_MySqlPort->setText(QString::number(_dbPort));
+    le_MySqlName->setText(_dbName);
+    le_MySqlUser->setText(_dbUser);
+    le_MySqlPasswd->setText(_dbPasswd);
+
+    le_TcpHost->setText(_tcpHost);
+    le_TcpPort->setText(QString::number(_tcpPort));
+
 }
