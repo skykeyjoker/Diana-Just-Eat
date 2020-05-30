@@ -16,13 +16,74 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     }
 
 
+    // 创建Tcp服务器，并监听
+    //establishTcp();
+    _tcpServer = new QTcpServer;
+    bool tcpRet = _tcpServer->listen(QHostAddress(_tcpHost),_tcpPort);
+
+    if(!tcpRet)
+    {
+        QMessageBox::critical(this,"Tcp服务端未建立","未能建立Tcp服务端!");
+    }
+    else qDebug()<<"成功建立Tcp服务端";
+
+    //当有客户端连接时，调用slotNewConnection方法
+    connect(_tcpServer,&QTcpServer::newConnection,this,&ServerMainWindow::slotNewConnection);
+
+
+
     ui->tabWidget->setCurrentIndex(0);
 
     // Init Tab of Orders
     //TODO 订单tab
     QVBoxLayout *layOrders = new QVBoxLayout(ui->tab_Orders);
-    _list_Orders = new QListWidget;
-    layOrders->addWidget(_list_Orders);
+    _table_Orders = new QTableWidget;
+    layOrders->addWidget(_table_Orders);
+    //订单号 桌号 价格 订单内容 订单备注
+    _table_Orders->setColumnCount(6); //设置列数
+    _table_Orders->setHorizontalHeaderLabels(QStringList()<<"状态"<<"订单号"<<"桌号"<<"价格"<<"订单内容"<<"订单备注"); //设置水平表头
+
+    //设置列宽
+    _table_Orders->setColumnWidth(0,120);
+    _table_Orders->setColumnWidth(1,180);
+    _table_Orders->setColumnWidth(2,100);
+    _table_Orders->setColumnWidth(3,100);
+    _table_Orders->setColumnWidth(4,300);
+    _table_Orders->setColumnWidth(5,280);
+
+    //让“订单内容”和订单备注随拉伸变化
+    _table_Orders->horizontalHeader()->setSectionResizeMode(4,QHeaderView::Stretch);
+    _table_Orders->horizontalHeader()->setSectionResizeMode(5,QHeaderView::Stretch);
+
+    //设置table属性
+    _table_Orders->setFocusPolicy(Qt::NoFocus);  //失去焦点，让_table_Orders在未选中前不能删除
+    _table_Orders->setSelectionBehavior(QAbstractItemView::SelectRows); //设置选择行行为，以行为单位
+    _table_Orders->setSelectionMode(QAbstractItemView::SingleSelection); //设置选择模式，选择单行
+    _table_Orders->setEditTriggers(QAbstractItemView::NoEditTriggers);  //设置为禁止编辑
+
+    QHBoxLayout *layOrder_Btns = new QHBoxLayout;
+    QPushButton *btnViewer = new QPushButton("查看该订单");
+    QPushButton *btnHandle = new QPushButton("处理该订单");
+    QPushButton *btnHistory = new QPushButton("查看历史订单");
+    layOrder_Btns->addStretch(2);
+    layOrder_Btns->addWidget(btnHistory);
+    layOrder_Btns->addStretch(4);
+    layOrder_Btns->addWidget(btnViewer);
+    layOrder_Btns->addStretch(4);
+    layOrder_Btns->addWidget(btnHandle);
+    layOrder_Btns->addStretch(2);
+    layOrders->addLayout(layOrder_Btns);
+
+    //绑定双击事件
+    //connect(_table_Orders,SIGNAL(itemDoubleClicked(QTableWidgetItem *item)),this,SLOT(slotItemDoubleClicked(QTableWidgetItem *item)));
+    //connect(_table_Orders,&QTableWidget::doubleClicked(const QModelIndex &index));
+    //connect(_table_Orders,SIGNAL(SIGNAL(cellDoubleClicked(int , int ))),this,SLOT(slotCellDoubleClicked(int , int )));
+    //TODO 绑定双击事件
+
+    //绑定按钮
+    connect(btnHistory,&QPushButton::clicked,this,&ServerMainWindow::slotBtnHistoryClicked);
+    connect(btnHandle,&QPushButton::clicked,this,&ServerMainWindow::slotBtnHandleClicked);
+    connect(btnViewer,&QPushButton::clicked,this,&ServerMainWindow::slotBtnViewerClicked);
 
 
     // Init Tab of Menu
@@ -38,13 +99,17 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     _model->setHeaderData(4, Qt::Horizontal, "菜品价格");
     _model->setHeaderData(5, Qt::Horizontal, "菜品图片");
     _view_Menu->setModel(_model);
+
+    //设置_view_Menu属性
     _view_Menu->setColumnHidden(0,true); //隐藏ID列
     _view_Menu->setAlternatingRowColors(true); //行颜色变换
     _view_Menu->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);  //让“描述”随拉伸变化
     _view_Menu->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Stretch);  //让“图片”随拉伸变化
     _view_Menu->setColumnWidth(3, 250);
     _view_Menu->setColumnWidth(5, 250);
-
+    _view_Menu->setSelectionBehavior(QAbstractItemView::SelectRows);  //设置为选择单位为行
+    _view_Menu->setSelectionMode(QAbstractItemView::SingleSelection); //设置选择一行
+    _view_Menu->setEditTriggers(QAbstractItemView::NoEditTriggers);  //设置为只读
 
     QHBoxLayout *layMenu_btn = new QHBoxLayout(NULL);
     QPushButton *btnEdit = new QPushButton("修改菜品");
@@ -211,6 +276,85 @@ bool ServerMainWindow::connectDb()
     return true;
 }
 
+void ServerMainWindow::slotNewConnection()
+{
+    qDebug()<<"客户端连接";
+
+    //判断是否有未处理的连接
+    while(_tcpServer->hasPendingConnections())
+    {
+        qDebug()<<"处理链接";
+        //调用nextPendingConnection去获得连接的socket
+        QTcpSocket* currentSocket = _tcpServer->nextPendingConnection();
+        _tcpSocket.append(currentSocket);
+        //为新的scoket提供槽函数，来接收数据
+        connect(currentSocket,&QTcpSocket::readyRead,this,&ServerMainWindow::slotReadyRead);
+    }
+}
+
+void ServerMainWindow::slotReadyRead()
+{
+    for(int i=0; i<_tcpSocket.length();i++)
+    {
+
+        //接收数据，判断是否有数据，如果有，通过readAll函数获得所有数据
+        qDebug()<<"Data arrived...";
+        QByteArray buff=_tcpSocket[i]->readAll();
+        qDebug()<<buff;
+
+        if(buff.isEmpty()) continue;
+
+        QString str = QString::fromUtf8(buff);
+        qDebug()<<str;
+
+        qDebug()<<str.section(";",0,0);
+        qDebug()<<str.section(";",1,1);
+        qDebug()<<str.section(";",2,2);
+        qDebug()<<str.section(";",3,3);
+
+
+
+        _table_Orders->setRowCount(_table_Orders->rowCount()+1);
+        qDebug()<<_table_Orders->rowCount();
+
+        //TODO 订单号处理
+        //插入_table_Orders
+        _table_Orders->setItem(_table_Orders->rowCount()-1,0,new QTableWidgetItem("未处理"));
+
+        //_table_Orders->setItem(_table_Orders->rowCount()-1,1,new QTableWidgetItem("20200530"));
+        QString strOrderNum = QString::number(_OrdersCount);
+        QString preZero;
+        qDebug()<<strOrderNum;
+        qDebug()<<"size"<<strOrderNum.length();
+        for(int i=1;i<=5-strOrderNum.length();i++)
+        {
+            preZero=preZero+'0';
+        }
+        //qDebug()<<preZero;
+        strOrderNum=preZero+strOrderNum;
+        //qDebug()<<strOrderNum;
+        strOrderNum=getTimeStamp()+strOrderNum;
+        qDebug()<<strOrderNum;
+        _table_Orders->setItem(_table_Orders->rowCount()-1,1,new QTableWidgetItem(strOrderNum));
+
+
+        QTableWidgetItem *itemTable = new QTableWidgetItem(str.section(";",0,0));
+        _table_Orders->setItem(_table_Orders->rowCount()-1,2,itemTable);
+
+        QTableWidgetItem *itemPrice = new QTableWidgetItem(str.section(";",1,1));
+        _table_Orders->setItem(_table_Orders->rowCount()-1,3,itemPrice);
+
+        QTableWidgetItem *itemOders = new QTableWidgetItem(str.section(";",2,2));
+        _table_Orders->setItem(_table_Orders->rowCount()-1,4,itemOders);
+
+        QTableWidgetItem *itemNote = new QTableWidgetItem(str.section(";",3,3));
+        _table_Orders->setItem(_table_Orders->rowCount()-1,5,itemNote);
+
+        _OrdersCount++; //总订单数加1
+        _OrdersNoCount++; //未处理订单数加1
+    }
+}
+
 void ServerMainWindow::slotBtnEditClicked()
 {
     if (_view_Menu->currentIndex().row() == -1)
@@ -348,6 +492,7 @@ void ServerMainWindow::closeEvent(QCloseEvent *event)
 
 void ServerMainWindow::slotUpdateBtnClicked()
 {
+    //TODO 将tcp数据保存到MySql，方便客户端连接服务器
     if(le_MySqlHost->text().isEmpty()||le_MySqlName->text().isEmpty()||le_MySqlUser->text().isEmpty()||le_MySqlPasswd->text().isEmpty()||le_TcpHost->text().isEmpty()||le_TcpPort->text().isEmpty())
     {
         QMessageBox::critical(this,"错误","关键信息不完整！");
@@ -402,3 +547,55 @@ void ServerMainWindow::slotRevBtnClicked()
     le_TcpPort->setText(QString::number(_tcpPort));
 
 }
+
+void ServerMainWindow::slotBtnHistoryClicked()
+{
+    DialogHistoryViewer *dlg = new DialogHistoryViewer;
+    dlg->exec();
+}
+
+void ServerMainWindow::slotBtnHandleClicked()
+{
+    if(_table_Orders->currentIndex().row()==-1)
+    {
+        QMessageBox::critical(this,"处理失败","未选中任何行!");
+        return;
+    }
+
+    if(_table_Orders->item(_table_Orders->currentIndex().row(),0)->text()!="未处理")
+    {
+        QMessageBox::critical(this,"处理失败","该订单已经处理!");
+        return;
+    }
+
+    int currentRow = _table_Orders->currentRow();
+    int ret = QMessageBox::question(this,"请求确认",tr("您确认要处理该订单吗？\n当前订单为:\n订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow,1)->text()).arg(_table_Orders->item(currentRow,2)->text()));
+    if(ret==QMessageBox::Yes)
+    {
+        _table_Orders->setItem(currentRow,0,new QTableWidgetItem(QIcon(":/Res/ok.ico"),"订单已处理"));
+        _OrdersNoCount--; //未处理订单数减1
+        //TODO 添加该订单到本地数据库
+    }
+}
+
+void ServerMainWindow::slotBtnViewerClicked()
+{
+    if(_table_Orders->currentIndex().row()==-1)
+    {
+        QMessageBox::critical(this,"查看失败","未选中任何行!");
+        return;
+    }
+
+    DialogOrdersViewer *dlg = new DialogOrdersViewer;
+    bool isHandled = true;
+    if(_table_Orders->item(_table_Orders->currentIndex().row(),0)->text()=="未处理")
+    {
+        isHandled=false;
+        qDebug()<<"未处理";
+    }
+    dlg->setData(isHandled,_table_Orders->item(_table_Orders->currentIndex().row(),1)->text(),_table_Orders->item(_table_Orders->currentIndex().row(),2)->text(),_table_Orders->item(_table_Orders->currentIndex().row(),3)->text(),_table_Orders->item(_table_Orders->currentIndex().row(),4)->text(),_table_Orders->item(_table_Orders->currentIndex().row(),5)->text());
+    dlg->exec();
+
+}
+
+

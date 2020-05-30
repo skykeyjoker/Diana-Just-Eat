@@ -25,9 +25,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #endif()
 
 find_package(Qt5 COMPONENTS Widgets Gui Core Network Sql REQUIRED)
+qt5_add_resources(qrc_FILES res.qrc)
 
 if(ANDROID)
   add_library(Ordering-System-Server SHARED
+    ${qrc_FILES}
     EncryptDecrypt.h
     EncryptDecrypt.cpp
     main.cpp
@@ -44,9 +46,16 @@ if(ANDROID)
     convertpic.cpp
     writejson.h
     writejson.cpp
+    dialoghistoryviewer.h
+    dialoghistoryviewer.cpp
+    dialogordersviewer.h
+    dialogordersviewer.cpp
+    timestamp.h
+    timestamp.cpp
   )
 else()
   add_executable(Ordering-System-Server
+    ${qrc_FILES}
     main.cpp
     servermainwindow.cpp
     servermainwindow.h
@@ -63,6 +72,12 @@ else()
     convertpic.cpp
     writejson.h
     writejson.cpp
+    dialoghistoryviewer.h
+    dialoghistoryviewer.cpp
+    dialogordersviewer.h
+    dialogordersviewer.cpp
+    timestamp.h
+    timestamp.cpp
   )
 endif()
 

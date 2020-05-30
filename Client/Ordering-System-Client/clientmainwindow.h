@@ -2,6 +2,13 @@
 #define CLIENTMAINWINDOW_H
 
 #include <QMainWindow>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QLineEdit>
+
+#include "tcpclient.h"
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ClientMainWindow; }

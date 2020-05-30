@@ -4,12 +4,13 @@
 #include <QMainWindow>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QListWidget>
-#include <QListWidgetItem>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QDebug>
 #include <QCloseEvent>
+#include <QTabWidget>
 #include <QGroupBox>
 
 
@@ -21,10 +22,19 @@
 #include <QTableView>
 #include <QHeaderView>
 
+
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QNetworkInterface>
+
+
 #include "readjson.h"
 #include "writejson.h"
+#include "timestamp.h"
 #include "dialogaddrecord.h"
 #include "dialogeditrecord.h"
+#include "dialoghistoryviewer.h"
+#include "dialogordersviewer.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -42,11 +52,17 @@ public:
     ServerMainWindow(QWidget *parent = nullptr);
     ~ServerMainWindow();
 
+    // TcpServer
+    //void establishTcp(); //establish to tcpServer
+
+
     // DataBase
     ReadJson dbInfo;
     bool connectDb(); //connect  to database
 
-    QListWidget *_list_Orders;
+
+    // Orders Tab
+    QTableWidget *_table_Orders;
 
 
     // Menu Tab
@@ -66,6 +82,13 @@ public:
 
 
 public slots:
+    void slotNewConnection();
+    void slotReadyRead();
+
+    void slotBtnViewerClicked();
+    void slotBtnHistoryClicked();
+    void slotBtnHandleClicked();
+
     void slotBtnEditClicked();
     void slotBtnAddClicked();
     void slotBtnDelClicked();
@@ -91,6 +114,14 @@ private:
     int _dbPort;
     QString _tcpHost;
     int _tcpPort;
+
+    //TcpServer
+    QTcpServer *_tcpServer;
+    QList<QTcpSocket*> _tcpSocket;
+    int _OrdersCount = 0;
+    int _OrdersNoCount = 0;
+
+
 
 };
 #endif // SERVERMAINWINDOW_H

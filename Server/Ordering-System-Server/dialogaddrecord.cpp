@@ -4,6 +4,7 @@ DialogAddRecord::DialogAddRecord(QWidget *parent) : QDialog(parent)
 {
     setFixedSize(800, 800);
     setWindowTitle("添加菜品");
+    setWindowIcon(QIcon(":/Res/at8.ico"));
 
 
     QVBoxLayout *vlay = new QVBoxLayout(this);

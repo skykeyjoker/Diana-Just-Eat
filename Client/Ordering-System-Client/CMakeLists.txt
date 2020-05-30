@@ -32,6 +32,8 @@ if(ANDROID)
     clientmainwindow.cpp
     clientmainwindow.h
     clientmainwindow.ui
+    tcpclient.h
+    tcpclient.cpp
   )
 else()
   add_executable(Ordering-System-Client
@@ -39,6 +41,8 @@ else()
     clientmainwindow.cpp
     clientmainwindow.h
     clientmainwindow.ui
+    tcpclient.h
+    tcpclient.cpp
   )
 endif()
 

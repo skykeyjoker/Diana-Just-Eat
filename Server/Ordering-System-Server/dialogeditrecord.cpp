@@ -4,7 +4,7 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent)
 {
     setFixedSize(800, 500);
     setWindowTitle("修改菜品信息");
-
+    setWindowIcon(QIcon(":/Res/at8.ico"));
 
     QVBoxLayout *vlay = new QVBoxLayout(this);
 
