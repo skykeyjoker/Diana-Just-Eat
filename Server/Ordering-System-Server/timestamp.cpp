@@ -7,3 +7,11 @@ QString getTimeStamp()
 
     return str;
 }
+
+QString getFormatTimeStamp(QString format)
+{
+    QDateTime dateTime(QDateTime::currentDateTime());
+    QString str = dateTime.toString(format);
+
+    return str;
+}

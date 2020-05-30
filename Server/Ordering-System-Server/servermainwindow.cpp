@@ -1,6 +1,7 @@
 #include "servermainwindow.h"
 #include "./ui_servermainwindow.h"
 
+
 ServerMainWindow::ServerMainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::ServerMainWindow)
 {
@@ -130,7 +131,6 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
 
     // Init Tab for Config
-    //TODO 服务器配置tab
     QVBoxLayout *layConfig = new QVBoxLayout(ui->tab_Settings);
 
     QGroupBox *groupMySql = new QGroupBox("数据库设置");
@@ -222,6 +222,25 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     //绑定两按钮
     connect(btnUpdateConfig,&QPushButton::clicked,this,&ServerMainWindow::slotUpdateBtnClicked);
     connect(btnRevConfig,&QPushButton::clicked,this,&ServerMainWindow::slotRevBtnClicked);
+
+
+    // Status Bar
+    labelOrdersNoCount = new QLabel(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)),this);
+    labelOrdersCount = new QLabel(tr("总订单数：%1").arg(QString::number(_OrdersCount)),this);
+    labelTime = new QLabel(getFormatTimeStamp("yyyy-MM-dd hh:mm:ss"),this);
+
+    ui->statusbar->addPermanentWidget(labelOrdersNoCount);
+    ui->statusbar->addPermanentWidget(labelOrdersCount);
+    ui->statusbar->addPermanentWidget(labelTime);
+    //启动计时器
+    timer = new QTimer(this);
+    connect(timer,&QTimer::timeout,[=](){
+        labelTime->setText(getFormatTimeStamp("yyyy-MM-dd hh:mm:ss"));
+    });
+    timer->start(1000);
+
+    //Sound
+    sound = new QSound(":/Res/clock.wav");
 }
 
 ServerMainWindow::~ServerMainWindow()
@@ -317,11 +336,11 @@ void ServerMainWindow::slotReadyRead()
         _table_Orders->setRowCount(_table_Orders->rowCount()+1);
         qDebug()<<_table_Orders->rowCount();
 
-        //TODO 订单号处理
+
         //插入_table_Orders
         _table_Orders->setItem(_table_Orders->rowCount()-1,0,new QTableWidgetItem("未处理"));
 
-        //_table_Orders->setItem(_table_Orders->rowCount()-1,1,new QTableWidgetItem("20200530"));
+
         QString strOrderNum = QString::number(_OrdersCount);
         QString preZero;
         qDebug()<<strOrderNum;
@@ -350,8 +369,18 @@ void ServerMainWindow::slotReadyRead()
         QTableWidgetItem *itemNote = new QTableWidgetItem(str.section(";",3,3));
         _table_Orders->setItem(_table_Orders->rowCount()-1,5,itemNote);
 
+        //更新订单统计信息
         _OrdersCount++; //总订单数加1
         _OrdersNoCount++; //未处理订单数加1
+
+        //更新状态栏
+        ui->statusbar->showMessage("有新的订单！",2000);
+        labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
+        labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
+
+
+        //Sound
+        sound->play();
     }
 }
 
@@ -492,7 +521,6 @@ void ServerMainWindow::closeEvent(QCloseEvent *event)
 
 void ServerMainWindow::slotUpdateBtnClicked()
 {
-    //TODO 将tcp数据保存到MySql，方便客户端连接服务器
     if(le_MySqlHost->text().isEmpty()||le_MySqlName->text().isEmpty()||le_MySqlUser->text().isEmpty()||le_MySqlPasswd->text().isEmpty()||le_TcpHost->text().isEmpty()||le_TcpPort->text().isEmpty())
     {
         QMessageBox::critical(this,"错误","关键信息不完整！");
@@ -523,6 +551,10 @@ void ServerMainWindow::slotUpdateBtnClicked()
     if(tmpdb.open())
     {
         QMessageBox::information(this,"服务器配置信息更新成功！","服务器配置信息更新成功，请重启服务端程序！");
+
+        //保存tcp信息
+        tmpdb.exec(tr("update config set ServerHost = '%1',ServerPort = '%2' where 1" ).arg(_tcpHost).arg(QString::number(_tcpPort)));
+
         exit(0);
     }
     else
@@ -573,7 +605,13 @@ void ServerMainWindow::slotBtnHandleClicked()
     if(ret==QMessageBox::Yes)
     {
         _table_Orders->setItem(currentRow,0,new QTableWidgetItem(QIcon(":/Res/ok.ico"),"订单已处理"));
-        _OrdersNoCount--; //未处理订单数减1
+
+        //更新订单统计信息
+        _OrdersNoCount--; //未处理订单数减1'
+
+        //更新状态栏
+        labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
+
         //TODO 添加该订单到本地数据库
     }
 }

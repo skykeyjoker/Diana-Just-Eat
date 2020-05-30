@@ -1,4 +1,0 @@
-D:/File/code/Qt/Ordering-System/CMakeFiles/Ordering-System-Client.dir
-D:/File/code/Qt/Ordering-System/CMakeFiles/edit_cache.dir
-D:/File/code/Qt/Ordering-System/CMakeFiles/rebuild_cache.dir
-D:/File/code/Qt/Ordering-System/CMakeFiles/Ordering-System-Client_autogen.dir

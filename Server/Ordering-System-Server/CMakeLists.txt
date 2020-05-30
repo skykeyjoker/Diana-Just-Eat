@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #    endif()
 #endif()
 
-find_package(Qt5 COMPONENTS Widgets Gui Core Network Sql REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Gui Core Network Sql Multimedia REQUIRED)
 qt5_add_resources(qrc_FILES res.qrc)
 
 if(ANDROID)
@@ -81,4 +81,4 @@ else()
   )
 endif()
 
-target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql)
+target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Multimedia)

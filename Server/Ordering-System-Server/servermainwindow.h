@@ -12,6 +12,8 @@
 #include <QCloseEvent>
 #include <QTabWidget>
 #include <QGroupBox>
+#include <QTimer>
+#include <QSound>
 
 
 #include <QSqlDatabase>
@@ -51,10 +53,14 @@ class ServerMainWindow : public QMainWindow
 public:
     ServerMainWindow(QWidget *parent = nullptr);
     ~ServerMainWindow();
+    // Sound
+    QSound *sound;
 
-    // TcpServer
-    //void establishTcp(); //establish to tcpServer
-
+    // StatusBar
+    QLabel *labelOrdersCount;
+    QLabel *labelOrdersNoCount;
+    QLabel *labelTime;
+    QTimer *timer;
 
     // DataBase
     ReadJson dbInfo;

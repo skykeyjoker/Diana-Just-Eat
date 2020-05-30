@@ -6,5 +6,6 @@
 #include <QDateTime>
 
 QString getTimeStamp();
+QString getFormatTimeStamp(QString format);
 
 #endif // TIMESTAMP_H
