@@ -25,6 +25,7 @@ bool WriteJson::writeToFile()
     obj.insert("dbPort",_dbPort);
     obj.insert("tcpHost",_tcpHost);
     obj.insert("tcpPort",_tcpPort);
+    obj.insert("clearShot",_clearShot);
 
     QJsonDocument doc;
     doc.setObject(obj);

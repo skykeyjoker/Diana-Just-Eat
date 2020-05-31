@@ -86,6 +86,8 @@ public:
     QLineEdit *le_TcpHost;
     QLineEdit *le_TcpPort;
 
+    QLineEdit *le_ClearShot;
+
 
 public slots:
     void slotNewConnection();
@@ -94,6 +96,7 @@ public slots:
     void slotBtnViewerClicked();
     void slotBtnHistoryClicked();
     void slotBtnHandleClicked();
+    void slotBtnReHandleClicked();
 
     void slotBtnEditClicked();
     void slotBtnAddClicked();
@@ -108,6 +111,9 @@ public slots:
 
 
     void closeEvent(QCloseEvent *); //重写退出事件
+
+signals:
+
 private:
     Ui::ServerMainWindow *ui;
 
@@ -127,7 +133,7 @@ private:
     int _OrdersCount = 0;
     int _OrdersNoCount = 0;
 
-
+    int _clearShot;
 
 };
 #endif // SERVERMAINWINDOW_H

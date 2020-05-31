@@ -10,10 +10,12 @@
 #include <QTextBrowser>
 #include <QGroupBox>
 #include <QRadioButton>
-#include <QTableView>
-#include <QSqlTableModel>
+#include <QTableWidget>
+#include <QTableWidgetItem>
 #include <QSqlDatabase>
 #include <QSqlError>
+#include <QSqlQuery>
+#include <QSqlRecord>
 #include <QDateTimeEdit>
 #include <QDateTime>
 #include <QLabel>
@@ -21,17 +23,40 @@
 #include <QHBoxLayout>
 #include <QComboBox>
 #include <QMessageBox>
-#include <QPixmap>
-#include <QCloseEvent>
+#include <QHeaderView>
+#include <QDebug>
+#include <QDir>
 
+#include "dialogordersviewer.h"
 
 class DialogHistoryViewer : public QDialog
 {
     Q_OBJECT
 public:
     explicit DialogHistoryViewer(QWidget *parent = nullptr);
-    QTableView *_view;
+    QTableWidget *_table;
+
+    QGroupBox *boxSetting;
+    QRadioButton *RadioAll;
+    QRadioButton *RadioBefore;
+    QRadioButton *RadioBetween;
+    QDateTimeEdit *timeEditFrom;
+    QDateTimeEdit *timeEditTo;
+
+    QLabel *lb_count;
+
+    bool connectDb();
+
+    void searchHistory(QString from = "NULL", QString to = "NULL");
 signals:
+
+public slots:
+
+
+private:
+    QSqlDatabase sqliteDb;
+    int _countAllOrders=0;
+    int _countSelectedOrders=0;
 
 };
 

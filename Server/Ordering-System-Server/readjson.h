@@ -23,6 +23,7 @@ public:
     int getDbPort();
     QString getTcpHost();
     int getTcpPort();
+    int getClearShot();
 
 private:
     //Info from json
@@ -33,6 +34,7 @@ private:
     int _dbPort;
     QString _tcpHost;
     int _tcpPort;
+    int _clearShot;
 };
 
 #endif // READJSON_H
