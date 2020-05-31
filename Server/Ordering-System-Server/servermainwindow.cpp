@@ -46,9 +46,9 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     //设置列宽
     _table_Orders->setColumnWidth(0,120);
-    _table_Orders->setColumnWidth(1,180);
-    _table_Orders->setColumnWidth(2,100);
-    _table_Orders->setColumnWidth(3,100);
+    _table_Orders->setColumnWidth(1,200);
+    _table_Orders->setColumnWidth(2,90);
+    _table_Orders->setColumnWidth(3,90);
     _table_Orders->setColumnWidth(4,300);
     _table_Orders->setColumnWidth(5,280);
 
@@ -64,6 +64,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     QHBoxLayout *layOrder_Btns = new QHBoxLayout;
     QPushButton *btnViewer = new QPushButton("查看该订单");
+    QPushButton *btnReHandle = new QPushButton("重新处理该订单");
     QPushButton *btnHandle = new QPushButton("处理该订单");
     QPushButton *btnHistory = new QPushButton("查看历史订单");
     layOrder_Btns->addStretch(2);
@@ -72,6 +73,8 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     layOrder_Btns->addWidget(btnViewer);
     layOrder_Btns->addStretch(4);
     layOrder_Btns->addWidget(btnHandle);
+    layOrder_Btns->addStretch(4);
+    layOrder_Btns->addWidget(btnReHandle);
     layOrder_Btns->addStretch(2);
     layOrders->addLayout(layOrder_Btns);
 
@@ -83,6 +86,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     //绑定按钮
     connect(btnHistory,&QPushButton::clicked,this,&ServerMainWindow::slotBtnHistoryClicked);
+    connect(btnReHandle,&QPushButton::clicked,this,&ServerMainWindow::slotBtnReHandleClicked);
     connect(btnHandle,&QPushButton::clicked,this,&ServerMainWindow::slotBtnHandleClicked);
     connect(btnViewer,&QPushButton::clicked,this,&ServerMainWindow::slotBtnViewerClicked);
 
@@ -195,6 +199,20 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     layTcp->addLayout(layTcpPort);
 
 
+    QGroupBox *groupOrders = new QGroupBox("订单系统设置");
+    QVBoxLayout *layConfigOrders = new QVBoxLayout(groupOrders);
+
+    QHBoxLayout *layConfigOrdersClearShot = new QHBoxLayout;
+    QLabel *lb_CLearShot = new QLabel("已处理订单消失等待时间(s)：");
+    le_ClearShot = new QLineEdit;
+    layConfigOrdersClearShot->addWidget(lb_CLearShot);
+    layConfigOrdersClearShot->addWidget(le_ClearShot);
+    layConfigOrdersClearShot->addStretch(1);
+
+    layConfigOrders->addLayout(layConfigOrdersClearShot);
+
+
+
     QHBoxLayout *layConfigBtns = new QHBoxLayout;
     QPushButton *btnRevConfig = new QPushButton("恢复设置");
     QPushButton *btnUpdateConfig = new QPushButton("更新设置");
@@ -207,7 +225,9 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     layConfig->addWidget(groupMySql);
     layConfig->addWidget(groupTcp);
+    layConfig->addWidget(groupOrders);
     layConfig->addLayout(layConfigBtns);
+
 
     //初始化配置信息
     le_MySqlHost->setText(_dbHost);
@@ -218,6 +238,8 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     le_TcpHost->setText(_tcpHost);
     le_TcpPort->setText(QString::number(_tcpPort));
+
+    le_ClearShot->setText(QString::number(_clearShot));
 
     //绑定两按钮
     connect(btnUpdateConfig,&QPushButton::clicked,this,&ServerMainWindow::slotUpdateBtnClicked);
@@ -269,6 +291,9 @@ bool ServerMainWindow::connectDb()
     //赋值tcp服务端信息
     _tcpHost = dbInfo.getTcpHost();
     _tcpPort = dbInfo.getTcpPort();
+
+    //赋值订单服务端配置信息
+    _clearShot = dbInfo.getClearShot();
 
     db.setHostName(_dbHost);
     db.setDatabaseName(_dbName);
@@ -381,6 +406,8 @@ void ServerMainWindow::slotReadyRead()
 
         //Sound
         sound->play();
+
+
     }
 }
 
@@ -521,11 +548,13 @@ void ServerMainWindow::closeEvent(QCloseEvent *event)
 
 void ServerMainWindow::slotUpdateBtnClicked()
 {
-    if(le_MySqlHost->text().isEmpty()||le_MySqlName->text().isEmpty()||le_MySqlUser->text().isEmpty()||le_MySqlPasswd->text().isEmpty()||le_TcpHost->text().isEmpty()||le_TcpPort->text().isEmpty())
+    if(le_MySqlHost->text().isEmpty()||le_MySqlName->text().isEmpty()||le_MySqlUser->text().isEmpty()||le_MySqlPasswd->text().isEmpty()||le_TcpHost->text().isEmpty()||le_TcpPort->text().isEmpty()||le_ClearShot->text().isEmpty())
     {
         QMessageBox::critical(this,"错误","关键信息不完整！");
         return;
     }
+
+    //更新信息
     _dbHost = le_MySqlHost->text();
     _dbName = le_MySqlName->text();
     _dbUser = le_MySqlUser->text();
@@ -533,14 +562,15 @@ void ServerMainWindow::slotUpdateBtnClicked()
     _dbPort = le_MySqlPort->text().toInt();
     _tcpHost = le_TcpHost->text();
     _tcpPort = le_TcpPort->text().toInt();
+    _clearShot = le_ClearShot->text().toInt();
 
-    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_tcpHost,_tcpPort);
+    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_tcpHost,_tcpPort,_clearShot);
     if(!jsonConfig.writeToFile())
     {
         QMessageBox::critical(this,"错误","无法更新配置！");
     }
 
-
+    /* 申请一个临时数据库，检测数据库配置信息和保存tcp信息 */
     QSqlDatabase tmpdb = QSqlDatabase::addDatabase("QMYSQL");
     tmpdb.setHostName(_dbHost);
     tmpdb.setPort(_dbPort);
@@ -582,8 +612,40 @@ void ServerMainWindow::slotRevBtnClicked()
 
 void ServerMainWindow::slotBtnHistoryClicked()
 {
+    //先关闭菜单的db
+    //db.close();
     DialogHistoryViewer *dlg = new DialogHistoryViewer;
+
     dlg->exec();
+}
+
+void ServerMainWindow::slotBtnReHandleClicked()
+{
+    if(_table_Orders->currentIndex().row()==-1)
+    {
+        QMessageBox::critical(this,"处理失败","未选中任何行!");
+        return;
+    }
+
+    if(_table_Orders->item(_table_Orders->currentIndex().row(),0)->text()=="未处理")
+    {
+        QMessageBox::critical(this,"处理失败","该订单未处理!");
+        return;
+    }
+
+    int currentRow = _table_Orders->currentRow();
+    int ret = QMessageBox::question(this,"请求确认",tr("您确认要重新处理该订单吗？\n当前订单为:\n订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow,1)->text()).arg(_table_Orders->item(currentRow,2)->text()));
+    if(ret==QMessageBox::Yes)
+    {
+        _table_Orders->setItem(currentRow,0,new QTableWidgetItem("未处理"));
+
+        //更新订单统计信息
+        _OrdersNoCount++; //未处理订单数减1
+
+        //更新状态栏
+        labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
+    }
+
 }
 
 void ServerMainWindow::slotBtnHandleClicked()
@@ -601,18 +663,64 @@ void ServerMainWindow::slotBtnHandleClicked()
     }
 
     int currentRow = _table_Orders->currentRow();
+
+    /* 暴力做法，现在就先存一下该栏信息,后面遍历匹配删除 */
+    QTableWidgetItem *currentItemOrderNum = _table_Orders->item(currentRow,1);
+
     int ret = QMessageBox::question(this,"请求确认",tr("您确认要处理该订单吗？\n当前订单为:\n订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow,1)->text()).arg(_table_Orders->item(currentRow,2)->text()));
     if(ret==QMessageBox::Yes)
     {
         _table_Orders->setItem(currentRow,0,new QTableWidgetItem(QIcon(":/Res/ok.ico"),"订单已处理"));
 
         //更新订单统计信息
-        _OrdersNoCount--; //未处理订单数减1'
+        _OrdersNoCount--; //未处理订单数减1
 
         //更新状态栏
         labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
 
+
         //TODO 添加该订单到本地数据库
+        //建立数据连接
+        QSqlDatabase tmpDb = QSqlDatabase::addDatabase("QSQLITE","tmpSqlite");
+        //设置数据库文件名
+        QString dbPath = QDir::currentPath()+"/"+"orders.db";
+        tmpDb.setDatabaseName(dbPath);
+
+        if(tmpDb.open())
+        {
+            qDebug()<<"sqlite数据库连接成功";
+        }
+        else qDebug()<<"sqlite数据库连接失败"<<tmpDb.lastError().text();
+
+        QSqlQuery tmpQuery(tmpDb);
+
+        bool rret = tmpQuery.exec(tr("INSERT INTO Orders VALUES(NULL,'%1','%2',%3,'%4','%5');").arg(_table_Orders->item(currentRow,1)->text()).arg(_table_Orders->item(currentRow,2)->text()).arg(_table_Orders->item(currentRow,3)->text()).arg(_table_Orders->item(currentRow,4)->text()).arg(_table_Orders->item(currentRow,5)->text()));
+        //bool rret = tmpQuery.exec("INSERT INTO Orders VALUES(NULL,'2019053114563100002','A03',125,'[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香  丝:1]','希望能好吃');");
+        qDebug()<<rret;
+        //关闭本地数据库
+        tmpDb.close();
+
+
+        //QTimer 让已处理的订单定时消失
+        QTimer *clearTimer = new QTimer(this);
+
+
+        connect(clearTimer,&QTimer::timeout,[=](){
+            for(int i=0;i<=_table_Orders->rowCount();i++)
+            {
+                if(_table_Orders->item(i,1)==currentItemOrderNum)
+                {
+                    if(_table_Orders->item(i,0)->text()!="未处理")
+                    {
+                        _table_Orders->removeRow(i);
+                        qDebug()<<tr("清除第%1行").arg(QString::number(i));
+                    }
+                }
+            }
+        });
+        clearTimer->setSingleShot(true); //设置为只执行一次
+        clearTimer->start(_clearShot*1000);
+
     }
 }
 

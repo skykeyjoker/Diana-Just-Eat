@@ -2,6 +2,11 @@
 
 DialogOrdersViewer::DialogOrdersViewer(QWidget *parent) : QDialog(parent)
 {
+    setWindowTitle("订单查看");
+    setWindowIcon(QIcon(":/Res/at8.ico"));
+
+
+
     QVBoxLayout *lay = new QVBoxLayout(this);
 
     QHBoxLayout *hlayStatus = new QHBoxLayout;
