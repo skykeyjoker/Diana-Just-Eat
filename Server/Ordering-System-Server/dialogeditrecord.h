@@ -17,8 +17,13 @@
 #include <QFileDialog>
 #include <QPixmap>
 #include <QCloseEvent>
+#include <QDir>
+#include <QFileInfo>
+#include <QFile>
 
-#include "convertpic.h"
+
+//#include "convertpic.h"
+#include "httpfileload.h"
 
 class DialogEditRecord : public QDialog
 {
@@ -26,7 +31,8 @@ class DialogEditRecord : public QDialog
 public:
     explicit DialogEditRecord(QWidget *parent = nullptr);
 
-    void setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    //void setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    void setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto, QString url);
 
     // dish info
     int _dishId;
@@ -34,7 +40,8 @@ public:
     QString _dishType;
     QString _dishInfo;
     QString _dishPrice;
-    QByteArray _dishPhoto;
+    //QByteArray _dishPhoto;
+    QString _dishPhoto;
 
     // widgets
     QLineEdit *le_Name = new QLineEdit;
@@ -48,13 +55,16 @@ public:
     QString picPath;
     QPixmap _pic;
 
+    QString _url;
+
 public slots:
     void slotBtnCancelClicked();
     void slotBtnSubmitClicked();
 
     void closeEvent(QCloseEvent *); //重写退出事件
 signals:
-    void signalUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    //void signalUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    void signalUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
 };
 
 #endif // DIALOGEDITRECORD_H

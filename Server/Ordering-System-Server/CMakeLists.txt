@@ -52,6 +52,8 @@ if(ANDROID)
     dialogordersviewer.cpp
     timestamp.h
     timestamp.cpp
+    httpfileload.h
+    httpfileload.cpp
   )
 else()
   add_executable(Ordering-System-Server
@@ -78,6 +80,8 @@ else()
     dialogordersviewer.cpp
     timestamp.h
     timestamp.cpp
+    httpfileload.h
+    httpfileload.cpp
   )
 endif()
 

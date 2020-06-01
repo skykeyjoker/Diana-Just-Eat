@@ -75,11 +75,12 @@ DialogAddRecord::DialogAddRecord(QWidget *parent) : QDialog(parent)
             QMessageBox::critical(this, "错误", "打开文件失败");
         }
         else
+        {
             le_Photo->setText(picPath);
 
-
-        _pix = QPixmap(picPath);
-        brower->setPixmap(_pix);
+            _pix = QPixmap(picPath);
+            brower->setPixmap(_pix);
+        }
     });
 
     //取消按钮
@@ -89,6 +90,10 @@ DialogAddRecord::DialogAddRecord(QWidget *parent) : QDialog(parent)
     connect(btnSubmit,&QPushButton::clicked,this,&DialogAddRecord::slotBtnSubmitClicked);
 }
 
+void DialogAddRecord::setUrl(QString url)
+{
+    _url = url;
+}
 
 //取消槽函数
 void DialogAddRecord::slotBtnCancelClicked()
@@ -109,7 +114,40 @@ void DialogAddRecord::slotBtnSubmitClicked()
     _dishType = le_Type->text();
     _dishInfo = le_Info->toPlainText();
     _dishPrice = le_Price->text();
-    _dishPhoto = toBase64(_pix);
+
+
+    //上传图片
+    //_dishPhoto = toBase64(_pix);
+    qDebug()<<"Dialogadd _url="<<_url+"/upload_file.php";
+    HttpFileLoad load(le_Photo->text(),_url+"/upload_file.php");
+    if(!load.upload())
+    {
+        QMessageBox::critical(this,"提交失败","图片上传失败！");
+        return;
+    }
+    else qDebug()<<"图片上传成功！";
+
+
+
+    //拷贝图片到程序运行目录
+    QString newPath = QDir::currentPath()+"/Pic/"+le_Name->text()+le_Photo->text().mid(le_Photo->text().lastIndexOf("."),-1);
+    QFileInfo info(newPath);
+    QString fileName = info.fileName();
+    //判断文件是否存在
+    if(info.exists())
+    {
+        QDir dir(QDir::currentPath()+"/Pic");
+        dir.remove(fileName);
+    }
+    if(QFile::copy(picPath,newPath))
+    {
+        qDebug()<<"拷贝成功";
+    }
+    else qDebug()<<"拷贝失败";
+
+
+
+    _dishPhoto = load.getFileName();
 
     emit signalSubmit(_dishName,_dishType,_dishInfo,_dishPrice,_dishPhoto);
     QMessageBox::information(this,"成功","添加菜品信息成功！");

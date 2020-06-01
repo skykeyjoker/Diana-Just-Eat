@@ -17,8 +17,14 @@
 #include <QFileDialog>
 #include <QPixmap>
 #include <QCloseEvent>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 
-#include "convertpic.h"
+
+//#include "convertpic.h"
+#include "httpfileload.h"
+
 
 class DialogAddRecord : public QDialog
 {
@@ -31,7 +37,8 @@ public:
     QString _dishType;
     QString _dishInfo;
     QString _dishPrice;
-    QByteArray _dishPhoto;
+    //QByteArray _dishPhoto;
+    QString _dishPhoto;
 
     // widgets
     QLineEdit *le_Name;
@@ -44,14 +51,17 @@ public:
     QString picPath;
     QPixmap _pix;
 
+    QString _url;
 
+    void setUrl(QString url);
 public slots:
     void slotBtnCancelClicked();
     void slotBtnSubmitClicked();
 
     void closeEvent(QCloseEvent *); //重写退出事件
 signals:
-    void signalSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    //void signalSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    void signalSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
 };
 
 #endif // DIALOGADDRECORD_H

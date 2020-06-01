@@ -69,11 +69,15 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent)
             QMessageBox::critical(this, "错误", "打开文件失败");
         }
         else
+        {
             le_Photo->setText(picPath);
 
-        //预览图片
-        _pic=QPixmap(picPath);
-        brower->setPixmap(_pic);
+            //预览图片
+            _pic=QPixmap(picPath);
+            brower->setPixmap(_pic);
+
+
+        }
     });
 
 
@@ -84,7 +88,7 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent)
     connect(btnSubmit,&QPushButton::clicked,this,&DialogEditRecord::slotBtnSubmitClicked);
 }
 
-void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto)
+void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto, QString url)
 {
     _dishId = dishId;
     _dishName = dishName;
@@ -93,6 +97,7 @@ void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, 
     _dishPrice = dishPrice;
     _dishPhoto = dishPhoto;
 
+    _url = url;
 
     // 设置内容
     le_Name->setText(_dishName);
@@ -100,10 +105,12 @@ void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, 
     le_Info->setText(_dishInfo);
     le_Price->setText(_dishPrice);
 
-    _pic = toQPixmap(dishPhoto);
+    //设置图片
+    //_pic = toQPixmap(dishPhoto);
 
-    brower->setPixmap(_pic);
+    //brower->setPixmap(_pic);
 
+    brower->setText(tr("<img src=\"%1\"></img>").arg(QDir::currentPath()+"/Pic/"+dishName+dishPhoto.mid(dishPhoto.lastIndexOf("."),-1)));
     /*
     qDebug()<<_dishId;
     qDebug()<<_dishName;
@@ -113,6 +120,7 @@ void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, 
     qDebug()<<_dishPhoto;
 */
 }
+
 
 void DialogEditRecord::slotBtnCancelClicked()
 {
@@ -131,10 +139,40 @@ void DialogEditRecord::slotBtnSubmitClicked()
     _dishType = le_Type->text();
     _dishInfo = le_Info->toPlainText();
     _dishPrice = le_Price->text();
+
+    // upload file
     if(!le_Photo->text().isEmpty())
     {
-        _dishPhoto = toBase64(_pic);
+        HttpFileLoad upload(le_Photo->text(),_url+"/upload_file.php");
+        if(!upload.upload())
+        {
+            QMessageBox::critical(this,"提交失败","图片上传失败！");
+            return;
+        }
+        else qDebug()<<"图片上传成功！";
+        _dishPhoto = upload.getFileName();
+        qDebug()<<"_dishPhoto:"<<_dishPhoto;
     }
+
+    //拷贝图片到程序运行目录
+    QString newPath = QDir::currentPath()+"/Pic/"+le_Name->text()+le_Photo->text().mid(le_Photo->text().lastIndexOf("."),-1);
+    qDebug()<<"newPath"<<newPath;
+    QFileInfo info(newPath);
+    QString fileName = info.fileName();
+    //判断文件是否存在
+    if(info.exists())
+    {
+        qDebug()<<"文件已存在";
+        QDir dir(QDir::currentPath()+"/Pic");
+        qDebug()<<"dir:"<<dir.dirName();
+        qDebug()<<dir.remove(fileName);
+    }
+    if(QFile::copy(picPath,newPath))
+    {
+        qDebug()<<"拷贝成功";
+    }
+    else qDebug()<<"拷贝失败";
+
 
     emit signalUpdate(_dishId,_dishName,_dishType,_dishInfo,_dishPrice,_dishPhoto);
     QMessageBox::information(this,"成功","修改菜品信息成功！");

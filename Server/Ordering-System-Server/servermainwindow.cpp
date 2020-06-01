@@ -427,15 +427,19 @@ void ServerMainWindow::slotBtnEditClicked()
     QString dishType = record.value(2).toString();
     QString dishInfo = record.value(3).toString();
     QString dishPrice = record.value(4).toString();
-    QByteArray dishPhoto =record.value(5).toByteArray();
+    //QByteArray dishPhoto =record.value(5).toByteArray();
+    QString dishPhoto =record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/")+1,-1);
+    qDebug()<<"dishPhoto:"<<dishPhoto;
 
-    dlg->setValue(dishId,dishName,dishType,dishInfo,dishPrice,dishPhoto);
+    dlg->setValue(dishId,dishName,dishType,dishInfo,dishPrice,dishPhoto,_picHost);
+
+    qDebug()<<"_picHost:"<<_picHost;
     dlg->show();
 
 
     //利用函数指针调用DialogEditRecord带参数的signalUpdate信号，和ServerMainWindow带参数的slotUpdate槽
-    void (DialogEditRecord::*pSignalUpdate)(int, QString, QString, QString, QString, QByteArray)=&DialogEditRecord::signalUpdate;
-    void (ServerMainWindow::*pSlotUpdate)(int, QString, QString, QString, QString, QByteArray)=&ServerMainWindow::slotUpdate;
+    void (DialogEditRecord::*pSignalUpdate)(int, QString, QString, QString, QString, QString)=&DialogEditRecord::signalUpdate;
+    void (ServerMainWindow::*pSlotUpdate)(int, QString, QString, QString, QString, QString)=&ServerMainWindow::slotUpdate;
 
     connect(dlg,pSignalUpdate,this,pSlotUpdate);
 }
@@ -443,11 +447,13 @@ void ServerMainWindow::slotBtnEditClicked()
 void ServerMainWindow::slotBtnAddClicked()
 {
     DialogAddRecord *dlg = new DialogAddRecord;
+
+    dlg->setUrl(_picHost);
     dlg->show();
 
     //利用函数指针调用DialogAddRecord带参数的signalSubmit信号，和ServerMainWindow带参数的slotSubmit槽
-    void (DialogAddRecord::*pSignalSubmit)(QString, QString, QString, QString, QByteArray)=&DialogAddRecord::signalSubmit;
-    void (ServerMainWindow::*pSlotSubmit)(QString, QString, QString, QString, QByteArray)=&ServerMainWindow::slotSubmit;
+    void (DialogAddRecord::*pSignalSubmit)(QString, QString, QString, QString, QString)=&DialogAddRecord::signalSubmit;
+    void (ServerMainWindow::*pSlotSubmit)(QString, QString, QString, QString, QString)=&ServerMainWindow::slotSubmit;
 
     connect(dlg,pSignalSubmit,this,pSlotSubmit);
 }
@@ -478,9 +484,10 @@ void ServerMainWindow::slotBtnDelClicked()
             return;
         }
     }
+
 }
 
-void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto)
+void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto)
 {
     qDebug()<<"slotSubmit";
     //qDebug()<<dishName<<" "<<dishType<<" "<<dishInfo<<" "<<dishPrice<<" "<<dishPhoto;
@@ -490,7 +497,7 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
     record.setValue(2,dishType);
     record.setValue(3,dishInfo);
     record.setValue(4,dishPrice.toDouble());
-    record.setValue(5,QString::fromUtf8(dishPhoto));
+    record.setValue(5,_picHost+"/upload/"+dishPhoto);
 
     bool bRet = _model->insertRecord(-1,record);
 
@@ -505,7 +512,7 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
     _model->submitAll();
 }
 
-void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto)
+void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto)
 {
     qDebug()<<"slotUpdate";
     //qDebug()<<dishId<<" "<<dishName<<" "<<dishType<<" "<<dishInfo<<" "<<dishPrice<<" "<<dishPhoto;
@@ -514,9 +521,11 @@ void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType
     record.setValue(2,dishType);
     record.setValue(3,dishInfo);
     record.setValue(4,dishPrice.toDouble());
-    if(dishPhoto!=record.value(5))  //检测图片是否更新
+
+
+    if((_picHost+"/upload/"+dishPhoto)!=record.value(5))  //检测图片是否更新
     {
-        record.setValue(5,QString::fromUtf8(dishPhoto));
+        record.setValue(5,_picHost+"/upload/"+dishPhoto);
         qDebug()<<"图片改变";
     }
 

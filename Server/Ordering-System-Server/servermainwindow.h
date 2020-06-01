@@ -102,8 +102,8 @@ public slots:
     void slotBtnAddClicked();
     void slotBtnDelClicked();
 
-    void slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
-    void slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+    void slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
+    void slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
 
 
     void slotUpdateBtnClicked();
@@ -126,6 +126,9 @@ private:
     int _dbPort;
     QString _tcpHost;
     int _tcpPort;
+
+    //图片服务器
+    QString _picHost = "http://pic.skykeyjoker.xyz";
 
     //TcpServer
     QTcpServer *_tcpServer;
