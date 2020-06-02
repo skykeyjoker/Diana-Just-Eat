@@ -20,7 +20,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     // 创建Tcp服务器，并监听
     //establishTcp();
     _tcpServer = new QTcpServer;
-    bool tcpRet = _tcpServer->listen(QHostAddress(_tcpHost),_tcpPort);
+    bool tcpRet = _tcpServer->listen(QHostAddress::Any,_tcpPort);
 
     if(!tcpRet)
     {
@@ -31,7 +31,8 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     //当有客户端连接时，调用slotNewConnection方法
     connect(_tcpServer,&QTcpServer::newConnection,this,&ServerMainWindow::slotNewConnection);
 
-
+    //收到sendMenuUpdateSiganl后调用slotSendMenuUpdateMessage槽函数
+    connect(this,&ServerMainWindow::sendMenuUpdateSignal,this,&ServerMainWindow::slotSendMenuUpdateMessage);
 
     ui->tabWidget->setCurrentIndex(0);
 
@@ -178,6 +179,18 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
     le_MySqlPasswd->setEchoMode(QLineEdit::Password);
 
+    QGroupBox *groupHttp = new QGroupBox("图片HTTP服务器设置");
+    QVBoxLayout *layHttp = new QVBoxLayout(groupHttp);
+    QLabel *lb_HttpHost = new QLabel("HTTP服务端地址：");
+    le_HttpHost = new QLineEdit;
+
+    QHBoxLayout *layHttpHost = new QHBoxLayout;
+    layHttpHost->addWidget(lb_HttpHost);
+    layHttpHost->addWidget(le_HttpHost);
+    layHttpHost->addStretch(1);
+
+    layHttp->addLayout(layHttpHost);
+
 
     QGroupBox *groupTcp = new QGroupBox("TCP设置");
     QVBoxLayout *layTcp = new QVBoxLayout(groupTcp);
@@ -224,6 +237,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
 
     layConfig->addWidget(groupMySql);
+    layConfig->addWidget(groupHttp);
     layConfig->addWidget(groupTcp);
     layConfig->addWidget(groupOrders);
     layConfig->addLayout(layConfigBtns);
@@ -235,6 +249,8 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
     le_MySqlUser->setText(_dbUser);
     le_MySqlPort->setText(QString::number(_dbPort));
     le_MySqlPasswd->setText(_dbPasswd);
+
+    le_HttpHost->setText(_picHost);
 
     le_TcpHost->setText(_tcpHost);
     le_TcpPort->setText(QString::number(_tcpPort));
@@ -288,6 +304,9 @@ bool ServerMainWindow::connectDb()
     _dbPasswd = dbInfo.getDbPasswd();
     _dbPort = dbInfo.getDbPort();
 
+    //赋值图片HTTP服务器信息
+    _picHost = dbInfo.getPicHost();
+
     //赋值tcp服务端信息
     _tcpHost = dbInfo.getTcpHost();
     _tcpPort = dbInfo.getTcpPort();
@@ -312,10 +331,27 @@ bool ServerMainWindow::connectDb()
         qDebug() << "数据库连接成功";
 
     //设置QSqlModel
+    //menu表
     _model = new QSqlTableModel;
     _model->setTable("menu");
     _model->select();
     _model->setEditStrategy(QSqlTableModel::OnManualSubmit); //设置提交策略
+
+
+    //menuType表
+    _menuTypeModel = new QSqlTableModel;
+    _menuTypeModel->setTable("menuType");
+    _menuTypeModel->select();
+    _model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+    //遍历menuType表初始化_menuTypeList
+
+    for(int i=0; i<_menuTypeModel->rowCount(); i++)
+    {
+        QSqlRecord currentRecord = _menuTypeModel->record(i);
+        _menuTypeList.append(currentRecord.value(1).toString());
+    }
+
+    qDebug()<<"_menuTypeList: "<<_menuTypeList;
 
     return true;
 }
@@ -411,6 +447,21 @@ void ServerMainWindow::slotReadyRead()
     }
 }
 
+void ServerMainWindow::slotSendMenuUpdateMessage()
+{
+    qDebug()<<"slotSendMenuUpdateMessage";
+
+    QTcpSocket *currentSocket;
+
+    for(int i=0; i<_tcpSocket.size(); i++)
+    {
+        currentSocket = _tcpSocket.at(i);
+        currentSocket->write(QString("[Menu Updated]").toUtf8());
+    }
+
+    qDebug()<<"SendMenuUpdateMessage Done";
+}
+
 void ServerMainWindow::slotBtnEditClicked()
 {
     if (_view_Menu->currentIndex().row() == -1)
@@ -428,6 +479,10 @@ void ServerMainWindow::slotBtnEditClicked()
     QString dishInfo = record.value(3).toString();
     QString dishPrice = record.value(4).toString();
     //QByteArray dishPhoto =record.value(5).toByteArray();
+
+    //赋值一下oldDishType
+    oldDishType=dishType;
+
     QString dishPhoto =record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/")+1,-1);
     qDebug()<<"dishPhoto:"<<dishPhoto;
 
@@ -469,6 +524,12 @@ void ServerMainWindow::slotBtnDelClicked()
     int ret = QMessageBox::question(this, "确认删除", "你确认要删除这个菜品吗？");
     if (ret == QMessageBox::Yes)
     {
+        //先记录一下当前的部分信息
+        QSqlRecord record = _model->record(_view_Menu->currentIndex().row());
+        QString menuName = record.value(1).toString();
+        QString fileName = record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/"),-1);
+        QString menuType = record.value(2).toString();
+
         bool delRet = _model->removeRow(_view_Menu->currentIndex().row());
         if (!delRet)
         {
@@ -483,6 +544,67 @@ void ServerMainWindow::slotBtnDelClicked()
             qDebug() << db.lastError().text();
             return;
         }
+
+        //删除本地和远程的图片
+        QDir dir = QDir::currentPath()+"/Pic";
+
+        if(dir.exists(menuName+".jpg"))
+        {
+            dir.remove(menuName+".jpg");
+            qDebug()<<"Delete Menu: remove "+menuName+".jpg";
+
+            //删除HTTP服务器上的文件
+            HttpFileUpdate updateFile(fileName,_picHost+"/update.php");
+            updateFile.update();
+        }
+        if(dir.exists(menuName+".jpeg"))
+        {
+            dir.remove(menuName+".jpeg");
+            qDebug()<<"Delete Menu: remove "+menuName+".jpeg";
+
+            //删除HTTP服务器上的文件
+            HttpFileUpdate updateFile(fileName,_picHost+"/update.php");
+            updateFile.update();
+        }
+        if(dir.exists(menuName+".png"))
+        {
+            dir.remove(menuName+".png");
+            qDebug()<<"Delete Menu: remove "+menuName+".png";
+
+            //删除HTTP服务器上的文件
+            HttpFileUpdate updateFile(fileName,_picHost+"/update.php");
+            updateFile.update();
+        }
+
+
+        //维护menuType表
+        int index = _menuTypeList.indexOf(menuType);
+
+        QSqlQuery query(db);
+        if(index!=-1)
+        {
+            //index++;
+            QSqlQuery indexQuery(db);
+            qDebug()<<indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(menuType));
+            indexQuery.next();
+            QSqlRecord indexRecord = indexQuery.record();
+            qDebug()<<indexRecord.value(1).toString();
+            index=indexRecord.value(0).toInt();
+
+            int menuTypeNum;
+            qDebug()<<query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
+            query.next();
+            QSqlRecord record = query.record();
+            qDebug()<<record.value(1).toString();
+            menuTypeNum=record.value(2).toInt();
+            qDebug()<<menuTypeNum;
+            menuTypeNum--;
+            qDebug()<<menuTypeNum;
+            qDebug()<<query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
+        }
+
+        //向客户端发送更新菜单消息
+        emit sendMenuUpdateSignal();
     }
 
 }
@@ -509,7 +631,52 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
     }
     else qDebug()<<"insert ok";
 
+
     _model->submitAll();
+
+
+    //给客户端发送更新菜单消息
+    emit sendMenuUpdateSignal();
+
+    //维护menuType表
+    int index = _menuTypeList.indexOf(dishType);
+    //QSqlRecord currentRecord;
+
+    if(index==-1) //如果原本没有这个菜品种类
+    {
+        _menuTypeList.append(dishType); //增加到_menuTypeList里面
+
+
+        QSqlQuery query(db);
+        qDebug()<<query.exec(tr("INSERT INTO menuType (ID, TypeName, Num) VALUES(NULL,'%1',1)").arg(dishType));
+
+
+    }
+    else
+    {
+        //index++;
+        QSqlQuery indexQuery(db);
+        qDebug()<<indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(dishType));
+        indexQuery.next();
+        QSqlRecord indexRecord = indexQuery.record();
+        qDebug()<<indexRecord.value(1).toString();
+        index=indexRecord.value(0).toInt();
+
+        QSqlQuery query(db);
+        qDebug()<<query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
+        int menuTypeNum;
+        query.next();
+        QSqlRecord record = query.record();
+        qDebug()<<record.value(1).toString();
+        menuTypeNum=record.value(2).toInt();
+        qDebug()<<menuTypeNum;
+        menuTypeNum++;
+        qDebug()<<menuTypeNum;
+        qDebug()<<query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
+    }
+
+
+
 }
 
 void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto)
@@ -539,7 +706,80 @@ void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType
     }
     else qDebug()<<"update ok";
 
+
     _model->submitAll();
+
+
+    //给客户端发送更新消息
+    emit sendMenuUpdateSignal();
+
+
+    //维护menuType表
+
+    if(oldDishType != dishType)  //如果菜品种类改变
+    {
+        qDebug()<<"更换类型";
+        int index = _menuTypeList.indexOf(oldDishType);
+        if(index!=-1)
+        {
+            //index++;
+            QSqlQuery indexQuery(db);
+            qDebug()<<indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(oldDishType));
+            indexQuery.next();
+            QSqlRecord indexRecord = indexQuery.record();
+            qDebug()<<indexRecord.value(1).toString();
+            index=indexRecord.value(0).toInt();
+
+            QSqlQuery query(db);
+            int menuTypeNum;
+            qDebug()<<query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
+            query.next();
+            QSqlRecord record = query.record();
+            qDebug()<<record.value(1).toString();
+            menuTypeNum=record.value(2).toInt();
+            qDebug()<<menuTypeNum;
+            menuTypeNum--;
+            qDebug()<<menuTypeNum;
+            qDebug()<<query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
+
+        }
+    }
+
+    int index = _menuTypeList.indexOf(dishType);
+    //QSqlRecord currentRecord;
+
+    if(index==-1) //如果原本没有这个菜品种类
+    {
+
+        _menuTypeList.append(dishType); //增加到_menuTypeList里面
+
+        QSqlQuery query(db);
+        qDebug()<<query.exec(tr("INSERT INTO menuType (ID, TypeName, Num) VALUES(NULL,'%1',1)").arg(dishType));
+    }
+    else
+    {
+        //index++;
+        QSqlQuery indexQuery(db);
+        qDebug()<<indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(dishType));
+        indexQuery.next();
+        QSqlRecord indexRecord = indexQuery.record();
+        qDebug()<<indexRecord.value(1).toString();
+        index=indexRecord.value(0).toInt();
+
+        QSqlQuery query(db);
+        qDebug()<<query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
+        int menuTypeNum;
+        query.next();
+        QSqlRecord record = query.record();
+        qDebug()<<record.value(1).toString();
+        menuTypeNum=record.value(2).toInt();
+        qDebug()<<menuTypeNum;
+        menuTypeNum++;
+        qDebug()<<menuTypeNum;
+        qDebug()<<query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
+    }
+
+
 }
 
 //重写退出事件
@@ -569,11 +809,12 @@ void ServerMainWindow::slotUpdateBtnClicked()
     _dbUser = le_MySqlUser->text();
     _dbPasswd = le_MySqlPasswd->text();
     _dbPort = le_MySqlPort->text().toInt();
+    _picHost = le_HttpHost->text();
     _tcpHost = le_TcpHost->text();
     _tcpPort = le_TcpPort->text().toInt();
     _clearShot = le_ClearShot->text().toInt();
 
-    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_tcpHost,_tcpPort,_clearShot);
+    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_picHost,_tcpHost,_tcpPort,_clearShot);
     if(!jsonConfig.writeToFile())
     {
         QMessageBox::critical(this,"错误","无法更新配置！");
@@ -688,7 +929,7 @@ void ServerMainWindow::slotBtnHandleClicked()
         labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
 
 
-        //TODO 添加该订单到本地数据库
+        //添加该订单到本地数据库
         //建立数据连接
         QSqlDatabase tmpDb = QSqlDatabase::addDatabase("QSQLITE","tmpSqlite");
         //设置数据库文件名
@@ -722,6 +963,7 @@ void ServerMainWindow::slotBtnHandleClicked()
                     if(_table_Orders->item(i,0)->text()!="未处理")
                     {
                         _table_Orders->removeRow(i);
+                        break;
                         qDebug()<<tr("清除第%1行").arg(QString::number(i));
                     }
                 }

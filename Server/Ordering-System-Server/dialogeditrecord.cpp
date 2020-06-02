@@ -143,6 +143,17 @@ void DialogEditRecord::slotBtnSubmitClicked()
     // upload file
     if(!le_Photo->text().isEmpty())
     {
+        //先删除远程图片
+        HttpFileUpdate fileUpdate(_dishName+".jpg",_url+"/update.php");
+        fileUpdate.update();
+
+        HttpFileUpdate fileUpdate1(_dishName+".jpeg",_url+"/update.php");
+        fileUpdate1.update();
+
+        HttpFileUpdate fileUpdate2(_dishName+".png",_url+"/update.php");
+        fileUpdate2.update();
+
+
         HttpFileLoad upload(le_Photo->text(),_url+"/upload_file.php");
         if(!upload.upload())
         {
@@ -151,7 +162,8 @@ void DialogEditRecord::slotBtnSubmitClicked()
         }
         else qDebug()<<"图片上传成功！";
         _dishPhoto = upload.getFileName();
-        qDebug()<<"_dishPhoto:"<<_dishPhoto;
+        qDebug()<<"EditMenu upload photo: _dishPhoto:"<<_dishPhoto;
+
     }
 
     //拷贝图片到程序运行目录

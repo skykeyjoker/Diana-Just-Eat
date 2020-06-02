@@ -21,6 +21,7 @@
 #include <QSqlRecord>
 #include <QSqlQuery>
 #include <QSqlTableModel>
+#include <QSqlIndex>
 #include <QTableView>
 #include <QHeaderView>
 
@@ -37,6 +38,7 @@
 #include "dialogeditrecord.h"
 #include "dialoghistoryviewer.h"
 #include "dialogordersviewer.h"
+#include "httpfileupdate.h"
 
 
 QT_BEGIN_NAMESPACE
@@ -74,6 +76,9 @@ public:
     // Menu Tab
     QTableView *_view_Menu;
     QSqlTableModel *_model;
+    QSqlTableModel *_menuTypeModel;
+    QList<QString> _menuTypeList;
+    QString oldDishType;
 
 
     // Config Tab
@@ -83,15 +88,20 @@ public:
     QLineEdit *le_MySqlPasswd;
     QLineEdit *le_MySqlPort;
 
+    QLineEdit *le_HttpHost;
+
     QLineEdit *le_TcpHost;
     QLineEdit *le_TcpPort;
 
     QLineEdit *le_ClearShot;
 
 
+
 public slots:
     void slotNewConnection();
     void slotReadyRead();
+
+    void slotSendMenuUpdateMessage();
 
     void slotBtnViewerClicked();
     void slotBtnHistoryClicked();
@@ -113,6 +123,7 @@ public slots:
     void closeEvent(QCloseEvent *); //重写退出事件
 
 signals:
+    void sendMenuUpdateSignal();  //更新客户端菜单信号
 
 private:
     Ui::ServerMainWindow *ui;
@@ -128,7 +139,7 @@ private:
     int _tcpPort;
 
     //图片服务器
-    QString _picHost = "http://pic.skykeyjoker.xyz";
+    QString _picHost;
 
     //TcpServer
     QTcpServer *_tcpServer;

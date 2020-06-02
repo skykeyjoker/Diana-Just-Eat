@@ -17,6 +17,7 @@ public:
     QTcpSocket *_socket = new QTcpSocket;
 
 public slots:
+    void slotReadyRead();
 
 private:
 

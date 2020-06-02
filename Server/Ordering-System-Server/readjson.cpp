@@ -33,6 +33,7 @@ bool ReadJson::readFromFile(const QString &fileName)
     _dbUser = jsonObj.value("dbUser").toString();
     _dbPasswd = jsonObj.value("dbPasswd").toString();
     _dbPort = jsonObj.value("dbPort").toInt();
+    _picHost = jsonObj.value("picHost").toString();
     _tcpHost = jsonObj.value("tcpHost").toString();
     _tcpPort = jsonObj.value("tcpPort").toInt();
     _clearShot = jsonObj.value("clearShot").toInt();
@@ -43,6 +44,7 @@ bool ReadJson::readFromFile(const QString &fileName)
     qDebug() << "_dbPasswd:" << _dbPasswd;
     qDebug() << "_tcpHost:" << _tcpHost;
     qDebug() << "_tcpPort:" <<_tcpPort;
+    qDebug() << "_picHost:" <<_picHost;
     qDebug() <<"_clearShot:"<<_clearShot;
 
     //解密
@@ -50,6 +52,8 @@ bool ReadJson::readFromFile(const QString &fileName)
     _dbName = XorEncryptDecrypt(_dbName, 19);
     _dbUser = XorEncryptDecrypt(_dbUser, 19);
     _dbPasswd = XorEncryptDecrypt(_dbPasswd, 19);
+    _picHost = XorEncryptDecrypt(_picHost,19);
+
 
 
     qDebug() << "_dbHost:" << _dbHost;
@@ -58,6 +62,7 @@ bool ReadJson::readFromFile(const QString &fileName)
     qDebug() << "_dbPasswd:" << _dbPasswd;
     qDebug() << "_tcpHost:" << _tcpHost;
     qDebug() << "_tcpPort:" <<_tcpPort;
+    qDebug() << "_picHost:" <<_picHost;
     qDebug() <<"_clearShot:"<<_clearShot;
 
 
@@ -87,6 +92,11 @@ QString ReadJson::getDbPasswd()
 int ReadJson::getDbPort()
 {
     return _dbPort;
+}
+
+QString ReadJson::getPicHost()
+{
+    return _picHost;
 }
 
 QString ReadJson::getTcpHost()

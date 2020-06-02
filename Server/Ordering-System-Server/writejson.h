@@ -16,8 +16,8 @@ class WriteJson
 {
 public:
     WriteJson();
-    WriteJson(QString dbHost, QString dbName, QString dbUser, QString dbPasswd, int dbPort, QString tcpHost, int tcpPort, int clearShot)
-        :_dbHost(dbHost), _dbName(dbName), _dbUser(dbUser), _dbPasswd(dbPasswd), _dbPort(dbPort), _tcpHost(tcpHost), _tcpPort(tcpPort),_clearShot(clearShot)
+    WriteJson(QString dbHost, QString dbName, QString dbUser, QString dbPasswd, int dbPort, QString picHost, QString tcpHost, int tcpPort, int clearShot)
+        :_dbHost(dbHost), _dbName(dbName), _dbUser(dbUser), _dbPasswd(dbPasswd), _dbPort(dbPort), _picHost(picHost),_tcpHost(tcpHost), _tcpPort(tcpPort),_clearShot(clearShot)
     {
 
     }
@@ -31,6 +31,7 @@ private:
     QString _dbUser;
     QString _dbPasswd;
     int _dbPort;
+    QString _picHost;
     QString _tcpHost;
     int _tcpPort;
     int _clearShot;

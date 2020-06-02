@@ -54,6 +54,8 @@ if(ANDROID)
     timestamp.cpp
     httpfileload.h
     httpfileload.cpp
+    httpfileupdate.h
+    httpfileupdate.cpp
   )
 else()
   add_executable(Ordering-System-Server
@@ -82,6 +84,8 @@ else()
     timestamp.cpp
     httpfileload.h
     httpfileload.cpp
+    httpfileupdate.h
+    httpfileupdate.cpp
   )
 endif()
 

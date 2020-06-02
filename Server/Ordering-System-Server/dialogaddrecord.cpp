@@ -116,6 +116,17 @@ void DialogAddRecord::slotBtnSubmitClicked()
     _dishPrice = le_Price->text();
 
 
+    //先删除远程图片
+    HttpFileUpdate fileUpdate(_dishName+".jpg",_url+"/update.php");
+    fileUpdate.update();
+
+    HttpFileUpdate fileUpdate1(_dishName+".jpeg",_url+"/update.php");
+    fileUpdate1.update();
+
+    HttpFileUpdate fileUpdate2(_dishName+".png",_url+"/update.php");
+    fileUpdate2.update();
+
+
     //上传图片
     //_dishPhoto = toBase64(_pix);
     qDebug()<<"Dialogadd _url="<<_url+"/upload_file.php";

@@ -21,6 +21,7 @@ public:
     QString getDbUser();
     QString getDbPasswd();
     int getDbPort();
+    QString getPicHost();
     QString getTcpHost();
     int getTcpPort();
     int getClearShot();
@@ -34,6 +35,7 @@ private:
     int _dbPort;
     QString _tcpHost;
     int _tcpPort;
+    QString _picHost;
     int _clearShot;
 };
 

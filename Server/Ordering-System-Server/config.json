@@ -4,6 +4,7 @@
 	"dbUser":"`xjxvj",
 	"dbPasswd":"`xjxvj!  ==",
 	"dbPort":3306,
+	"picHost":"http://pic.skykeyjoker.xyz",
 	"tcpHost":"127.0.0.1",
 	"tcpPort":8081,
 	"clearShot":30
