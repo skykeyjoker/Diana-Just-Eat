@@ -34,6 +34,16 @@ if(ANDROID)
     clientmainwindow.ui
     tcpclient.h
     tcpclient.cpp
+    readjson.h
+    readjson.cpp
+    EncryptDecrypt.h
+    EncryptDecrypt.cpp
+    writejson.h
+    writejson.cpp
+    dialogsettings.h
+    dialogsettings.cpp
+    httpfiledownload.h
+    httpfiledownload.cpp
   )
 else()
   add_executable(Ordering-System-Client
@@ -43,6 +53,16 @@ else()
     clientmainwindow.ui
     tcpclient.h
     tcpclient.cpp
+    readjson.h
+    readjson.cpp
+    EncryptDecrypt.h
+    EncryptDecrypt.cpp
+    writejson.h
+    writejson.cpp
+    dialogsettings.h
+    dialogsettings.cpp
+    httpfiledownload.h
+    httpfiledownload.cpp
   )
 endif()
 

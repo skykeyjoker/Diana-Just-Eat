@@ -23,7 +23,8 @@ void TcpClient::slotReadyRead()
 
     if(dataStr=="[Menu Updated]")
     {
-        //TODO 发送更新菜单信号
+        //发送更新菜单信号
+        emit signalUpdateMenu();
         qDebug()<<"客户端已收到菜单更新信号";
     }
 }

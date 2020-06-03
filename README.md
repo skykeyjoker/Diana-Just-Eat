@@ -51,11 +51,11 @@
 
 服务端主要由三个Tab组成，分别对应着实时订单接收与处理、查看历史订单，查看修改菜单信息，修改服务器配置四个功能。
 
-服务端主要涉及Tcp操作与MySql、Sqlite以及Http操作。服务端使用Tcp实时与客户端进行信息交换；使用远程MySql存取菜单数据、服务端Tcp配置信息；使用本地Sqlite存取历史订单。服务端将图片存在远程Http服务器中，方便客户端与服务端同时访问。
+服务端主要涉及Tcp操作与MySql、Sqlite以及Http操作。服务端使用Tcp实时与客户端进行信息交换；使用远程MySql存取菜单数据；使用本地Sqlite存取历史订单。服务端将图片存在远程Http服务器中，方便客户端与服务端同时访问。
 
 MySql结构如下：
 
-```
+```mysql
 .DataBase: Ordering-Sytem
 .TABLES: menu, menuType, config
 /menu       --菜品数据 
@@ -64,14 +64,11 @@ MySql结构如下：
 /menuType   --菜品种类数据
   |-ID-|-TypeName-|-Num-|
 (ID INT PRIMARY KEY AUTOINCREMENT, TypeName Text, Num Text)
-/config     --服务端Tcp配置信息
-  |-Host-|-Port-|
-(Host Text, Port Text)
 ```
 
 Sqlite结构如下：
 
-```
+```mysql
 .DataBase: orders.db
 .TABLES: orders
 /orders   --历史订单
@@ -438,7 +435,13 @@ ____
 
 ### 客户端
 
-1. 先开始写吧。。。
+1. ~~菜单列表显示~~
+2. ~~客户端设置~~
+3. ~~菜品详细信息查看~~
+4. 购物车功能实现
+5. ~~接收服务端菜单更新信息，实时更新菜单。~~
+6. 
+7. 优化！优化！优化！
 
 
 

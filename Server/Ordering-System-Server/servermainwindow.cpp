@@ -832,9 +832,6 @@ void ServerMainWindow::slotUpdateBtnClicked()
     {
         QMessageBox::information(this,"服务器配置信息更新成功！","服务器配置信息更新成功，请重启服务端程序！");
 
-        //保存tcp信息
-        tmpdb.exec(tr("update config set ServerHost = '%1',ServerPort = '%2' where 1" ).arg(_tcpHost).arg(QString::number(_tcpPort)));
-
         exit(0);
     }
     else
@@ -858,6 +855,7 @@ void ServerMainWindow::slotRevBtnClicked()
     le_TcpHost->setText(_tcpHost);
     le_TcpPort->setText(QString::number(_tcpPort));
 
+    le_ClearShot->setText(QString::number(_clearShot));
 }
 
 void ServerMainWindow::slotBtnHistoryClicked()

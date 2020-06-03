@@ -23,6 +23,8 @@ private:
 
 signals:
     void signalEstablishConnect();
+
+    void signalUpdateMenu();
 };
 
 #endif // TCPCLIENT_H
