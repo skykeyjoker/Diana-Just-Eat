@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/">
+    <file>Res/addcart.png</file>
+    <file>Res/addtocart.png</file>
+    <file>Res/shoppingcart.png</file>
+    <file>Res/removefromcart.png</file>
+    <file>Res/icon.png</file>
+    <file>Res/checkout.png</file>
+    <file>Res/delete.png</file>
+    <file>Res/cancel.png</file>
+    <file>Res/confirm.png</file>
+    <file>Res/at8.ico</file>
+    <file>Res/settings.png</file>
+    <file>Res/clock.wav</file>
+    </qresource>
+</RCC>

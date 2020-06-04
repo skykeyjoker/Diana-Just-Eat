@@ -36,7 +36,7 @@ bool ReadJson::readFromFile(const QString &fileName)
     _picHost = jsonObj.value("picHost").toString();
     _tcpHost = jsonObj.value("tcpHost").toString();
     _tcpPort = jsonObj.value("tcpPort").toInt();
-
+    _tableNum = jsonObj.value("tableNum").toString();
 
     qDebug() << "_dbHost:" << _dbHost;
     qDebug() << "_dbName:" << _dbName;
@@ -45,6 +45,7 @@ bool ReadJson::readFromFile(const QString &fileName)
     qDebug() << "_tcpHost:" << _tcpHost;
     qDebug() << "_tcpPort:" <<_tcpPort;
     qDebug() << "_picHost:" <<_picHost;
+    qDebug() << "_tableNum:" <<_tableNum;
 
 
     //解密
@@ -63,7 +64,7 @@ bool ReadJson::readFromFile(const QString &fileName)
     qDebug() << "_tcpHost:" << _tcpHost;
     qDebug() << "_tcpPort:" <<_tcpPort;
     qDebug() << "_picHost:" <<_picHost;
-
+    qDebug() << "_tableNum:" <<_tableNum;
 
 
     return true;
@@ -107,4 +108,9 @@ QString ReadJson::getTcpHost()
 int ReadJson::getTcpPort()
 {
     return _tcpPort;
+}
+
+QString ReadJson::getTableNum()
+{
+    return _tableNum;
 }

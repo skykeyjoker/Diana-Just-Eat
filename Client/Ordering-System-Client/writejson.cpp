@@ -27,6 +27,7 @@ bool WriteJson::writeToFile()
     obj.insert("picHost",_picHost);
     obj.insert("tcpHost",_tcpHost);
     obj.insert("tcpPort",_tcpPort);
+    obj.insert("tableNum",_tableNum);
 
 
     QJsonDocument doc;

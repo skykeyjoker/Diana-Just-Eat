@@ -22,7 +22,7 @@ class DialogSettings : public QDialog
 {
     Q_OBJECT
 public:
-    explicit DialogSettings(QString dbHost, QString dbName, QString dbUser, QString dbPasswd, int dbPort, QString tcpHost, int tcpPort, QString picHost, QWidget *parent = nullptr);
+    explicit DialogSettings(QString dbHost, QString dbName, QString dbUser, QString dbPasswd, int dbPort, QString tcpHost, int tcpPort, QString picHost, QString tableNum,QWidget *parent = nullptr);
 
     QLineEdit *le_MySqlHost;
     QLineEdit *le_MySqlPort;
@@ -32,6 +32,7 @@ public:
     QLineEdit *le_HttpHost;
     QLineEdit *le_TcpHost;
     QLineEdit *le_TcpPort;
+    QLineEdit *le_TableNum;
 
 signals:
 
@@ -46,6 +47,8 @@ private:
 
     //图片服务器
     QString _picHost;
+
+    QString _tableNum;
 
 public slots:
     void slotUpdateBtnClicked();

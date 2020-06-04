@@ -26,8 +26,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 COMPONENTS Widgets Gui Core Network Sql REQUIRED)
 
+qt5_add_resources(qrc_FILES res.qrc)
+
 if(ANDROID)
   add_library(Ordering-System-Client SHARED
+    ${qrc_FILES}
     main.cpp
     clientmainwindow.cpp
     clientmainwindow.h
@@ -44,9 +47,20 @@ if(ANDROID)
     dialogsettings.cpp
     httpfiledownload.h
     httpfiledownload.cpp
+    cartitem.h
+    cartitem.cpp
+    timestamp.h
+    timestamp.cpp
+    dialogcartview.h
+    dialogcartview.cpp
+    mybutton.h
+    mybutton.cpp
+    dialogcheckout.h
+    dialogcheckout.cpp
   )
 else()
   add_executable(Ordering-System-Client
+    ${qrc_FILES}
     main.cpp
     clientmainwindow.cpp
     clientmainwindow.h
@@ -63,6 +77,16 @@ else()
     dialogsettings.cpp
     httpfiledownload.h
     httpfiledownload.cpp
+    cartitem.h
+    cartitem.cpp
+    timestamp.h
+    timestamp.cpp
+    dialogcartview.h
+    dialogcartview.cpp
+    mybutton.h
+    mybutton.cpp
+    dialogcheckout.h
+    dialogcheckout.cpp
   )
 endif()
 

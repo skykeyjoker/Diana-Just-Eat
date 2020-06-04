@@ -1,8 +1,11 @@
 #include "dialogsettings.h"
 
-DialogSettings::DialogSettings(QString dbHost, QString dbName, QString dbUser, QString dbPasswd, int dbPort, QString tcpHost, int tcpPort, QString picHost, QWidget *parent)
-    : QDialog(parent), _dbHost(dbHost), _dbName(dbName), _dbUser(dbUser), _dbPasswd(dbPasswd), _dbPort(dbPort), _tcpHost(tcpHost), _tcpPort(tcpPort), _picHost(picHost)
+DialogSettings::DialogSettings(QString dbHost, QString dbName, QString dbUser, QString dbPasswd, int dbPort, QString tcpHost, int tcpPort, QString picHost, QString tableNum,QWidget *parent)
+    : QDialog(parent), _dbHost(dbHost), _dbName(dbName), _dbUser(dbUser), _dbPasswd(dbPasswd), _dbPort(dbPort), _tcpHost(tcpHost), _tcpPort(tcpPort), _picHost(picHost), _tableNum(tableNum)
 {
+    this->setWindowTitle("客户端设置");
+    this->setWindowIcon(QIcon(":/Res/settings.png"));
+
 
     QVBoxLayout *layConfig = new QVBoxLayout(this);
 
@@ -80,6 +83,14 @@ DialogSettings::DialogSettings(QString dbHost, QString dbName, QString dbUser, Q
     layTcp->addLayout(layTcpPort);
 
 
+    QGroupBox *groupTable = new QGroupBox("桌号设置：");
+    QHBoxLayout *layTable = new QHBoxLayout(groupTable);
+    QLabel *lb_TableNum = new QLabel("桌号：");
+    le_TableNum = new QLineEdit;
+    layTable->addWidget(lb_TableNum);
+    layTable->addWidget(le_TableNum);
+    layTable->addStretch(1);
+
     QHBoxLayout *layConfigBtns = new QHBoxLayout;
     QPushButton *btnRevConfig = new QPushButton("恢复设置");
     QPushButton *btnUpdateConfig = new QPushButton("更新设置");
@@ -93,7 +104,9 @@ DialogSettings::DialogSettings(QString dbHost, QString dbName, QString dbUser, Q
     layConfig->addWidget(groupMySql);
     layConfig->addWidget(groupHttp);
     layConfig->addWidget(groupTcp);
+    layConfig->addWidget(groupTable);
     layConfig->addLayout(layConfigBtns);
+
 
 
     //初始化配置信息
@@ -107,6 +120,8 @@ DialogSettings::DialogSettings(QString dbHost, QString dbName, QString dbUser, Q
 
     le_TcpHost->setText(_tcpHost);
     le_TcpPort->setText(QString::number(_tcpPort));
+
+    le_TableNum->setText(_tableNum);
 
 
     //绑定两按钮
@@ -132,9 +147,9 @@ void DialogSettings::slotUpdateBtnClicked()
     _picHost = le_HttpHost->text();
     _tcpHost = le_TcpHost->text();
     _tcpPort = le_TcpPort->text().toInt();
+    _tableNum = le_TableNum->text().toInt();
 
-
-    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_picHost,_tcpHost,_tcpPort);
+    WriteJson jsonConfig(_dbHost,_dbName,_dbUser,_dbPasswd,_dbPort,_picHost,_tcpHost,_tcpPort,_tableNum);
     if(!jsonConfig.writeToFile())
     {
         QMessageBox::critical(this,"错误","无法更新配置！");

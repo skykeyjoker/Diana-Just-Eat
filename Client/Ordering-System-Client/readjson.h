@@ -24,6 +24,7 @@ public:
     QString getPicHost();
     QString getTcpHost();
     int getTcpPort();
+    QString getTableNum();
 
 
 private:
@@ -36,6 +37,7 @@ private:
     QString _tcpHost;
     int _tcpPort;
     QString _picHost;
+    QString _tableNum;
 
 };
 
