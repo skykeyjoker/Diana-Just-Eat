@@ -94,14 +94,12 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     });
 
     connect(RadioBefore,&QRadioButton::clicked,[=](){
-        searchHistory();
         timeEditTo->setVisible(true);
         timeEditFrom->setVisible(false);
         btn_search->setVisible(true);
     });
 
     connect(RadioBetween,&QRadioButton::clicked,[=](){
-        searchHistory();
         timeEditTo->setVisible(true);
         timeEditFrom->setVisible(true);
         btn_search->setVisible(true);
@@ -149,6 +147,11 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     connect(btn_search,&QPushButton::clicked,[=](){
         qDebug()<<timeEditFrom->dateTime().toString("yyyyMMddhhmmss");
         qDebug()<<timeEditTo->dateTime().toString("yyyyMMddhhmmss");
+
+        if(!RadioAll->isChecked())
+        {
+            searchHistory();
+        }
 
         if((timeEditFrom->dateTime()>timeEditTo->dateTime())&&!RadioBefore->isChecked())
         {
