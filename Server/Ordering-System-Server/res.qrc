@@ -4,6 +4,7 @@
     <file>Res/at7.ico</file>
     <file>Res/at8.ico</file>
     <file>Res/ok.ico</file>
+    <file>Res/calendar.png</file>
     <file>Res/clock.wav</file>
     </qresource>
 </RCC>

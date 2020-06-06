@@ -56,6 +56,10 @@ if(ANDROID)
     httpfileload.cpp
     httpfileupdate.h
     httpfileupdate.cpp
+    mydatetimeselect.h
+    mydatetimeselect.cpp
+    mybutton.h
+    mybutton.cpp
   )
 else()
   add_executable(Ordering-System-Server
@@ -86,6 +90,10 @@ else()
     httpfileload.cpp
     httpfileupdate.h
     httpfileupdate.cpp
+    mydatetimeselect.h
+    mydatetimeselect.cpp
+    mybutton.h
+    mybutton.cpp
   )
 endif()
 

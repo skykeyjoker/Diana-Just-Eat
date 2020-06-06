@@ -28,6 +28,7 @@
 #include <QDir>
 
 #include "dialogordersviewer.h"
+#include "mydatetimeselect.h"
 
 class DialogHistoryViewer : public QDialog
 {
@@ -40,8 +41,10 @@ public:
     QRadioButton *RadioAll;
     QRadioButton *RadioBefore;
     QRadioButton *RadioBetween;
-    QDateTimeEdit *timeEditFrom;
-    QDateTimeEdit *timeEditTo;
+    //QDateTimeEdit *timeEditFrom;
+    //QDateTimeEdit *timeEditTo;
+    MyDateTimeSelect *timeEditFrom;
+    MyDateTimeSelect *timeEditTo;
 
     QLabel *lb_count;
 

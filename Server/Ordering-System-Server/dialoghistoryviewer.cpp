@@ -23,8 +23,8 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     RadioAll = new QRadioButton("全部显示");
     RadioBefore = new QRadioButton("显示之前");
     RadioBetween = new QRadioButton("显示之间");
-    timeEditFrom = new QDateTimeEdit;
-    timeEditTo = new QDateTimeEdit;
+    timeEditFrom = new MyDateTimeSelect;
+    timeEditTo = new MyDateTimeSelect;
     QPushButton *btn_search = new QPushButton("查询");
 
     layBox->addWidget(RadioAll);
@@ -82,8 +82,6 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
 
     //调整group属性
     RadioAll->setChecked(true);
-    timeEditFrom->setDateTime(QDateTime::currentDateTime());
-    timeEditTo->setDateTime(QDateTime::currentDateTime());
     timeEditTo->setVisible(false);
     timeEditFrom->setVisible(false);
     btn_search->setVisible(false);
@@ -151,7 +149,8 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     connect(btn_search,&QPushButton::clicked,[=](){
         qDebug()<<timeEditFrom->dateTime().toString("yyyyMMddhhmmss");
         qDebug()<<timeEditTo->dateTime().toString("yyyyMMddhhmmss");
-        if(timeEditFrom->dateTime()>timeEditTo->dateTime())
+
+        if((timeEditFrom->dateTime()>timeEditTo->dateTime())&&!RadioBefore->isChecked())
         {
             QMessageBox::critical(this,"错误","请重新检查时间筛选设置！");
         }
