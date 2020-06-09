@@ -19,7 +19,17 @@ MyDateTimeSelect::MyDateTimeSelect(QWidget *parent) : QWidget(parent)
     edit->setDateTime(QDateTime::currentDateTime());
 
     connect(btn,&QPushButton::clicked,[=](){
-        calendar->setVisible(true);
+        if(_isOpened==false)
+        {
+            calendar->setVisible(true);
+            _isOpened = true;
+        }
+        else
+        {
+            calendar->setVisible(false);
+            _isOpened = false;
+        }
+
     });
 
     void (QCalendarWidget::*pSignalclicked)(const QDate&) = &QCalendarWidget::clicked;

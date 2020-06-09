@@ -26,6 +26,8 @@ public:
 
     QDateTime dateTime();
 
+    bool _isOpened = false;
+
 signals:
 
 public slots:

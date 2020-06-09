@@ -51,6 +51,7 @@ public:
     bool connectDb();
 
     void searchHistory(QString from = "NULL", QString to = "NULL");
+
 signals:
 
 public slots:
