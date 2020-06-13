@@ -654,7 +654,7 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
 
 
         //给客户端发送更新菜单消息
-        //注意一下发送消息的顺序v,要先更显完菜品信息才发送更新信息
+        //注意一下发送消息的顺序,要先更显完菜品信息才发送更新信息
         emit sendMenuUpdateSignal();
 
     }

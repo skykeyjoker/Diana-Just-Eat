@@ -95,6 +95,7 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
     void (ClientMainWindow::*pSlotItemClicked)(QListWidgetItem *) = &ClientMainWindow::slotItemClicked;
     connect(_menuList,pSignalItemClicked,this,pSlotItemClicked);
 
+
     //关联添加购物车按钮
     connect(btn_addToCart,&QPushButton::clicked,this,&ClientMainWindow::slotAddtoCart);
     connect(btn_addToCart,&QPushButton::clicked,btn_cart,&MyButton::showAddAnimation);
@@ -520,7 +521,7 @@ void ClientMainWindow::slotReadyCheckOut(QString note)  //结帐，发送socket�
     qDebug()<<"slotReadyCheckOut";
 
 /*
-A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
+    A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
 */
     QStringList dataList; //用一个QStringList来存取要发送的订单socket信息
     dataList<<_tableNum<<";";

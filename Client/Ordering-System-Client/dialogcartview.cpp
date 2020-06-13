@@ -88,6 +88,9 @@ DialogCartView::DialogCartView(const QList<CartItem>&cartlist, QWidget *parent)
         _cartTable->setItem(currentRow,2,currentItemPrice);
     }
 
+    //添加代理
+    _cartTable->setItemDelegateForColumn(1,new MySpinBoxDelegate);
+
     //关联按钮事件
     connect(btn_clear,&QPushButton::clicked,this,&DialogCartView::btnClearClicked);
     connect(btn_checkout,&QPushButton::clicked,this,&DialogCartView::btnCheckOutBtnClicked);
@@ -130,33 +133,66 @@ void DialogCartView::btnCheckOutBtnClicked()
 
 void DialogCartView::slotCartChanged(QTableWidgetItem *item)
 {
-
-    qDebug()<<"row:"<<item->row()<<" "<<"column:"<<item->column();
-
-    QTableWidgetItem *currentItemPrice = new QTableWidgetItem;
-    currentItemPrice->setText(QString::number(_cartList.at(item->row()).getSum())); //重新计算当前菜品总价
-
-
-    const_cast<CartItem&>(_cartList.at(item->row())).setItemNums(item->text().toInt());
-
-    //_cartPrice和_cartNum清零
-    _cartPrice = 0;
-    _cartNum = 0;
-
-    //计算当前购物车总价
-    for(int i=0;i<_cartList.size();i++)
+    if(item->column()==1)  //判断修改的列为菜品数量
     {
-        _cartPrice+=_cartList.at(i).getSum();
-    }
-    //计算当前购物车总数
-    for(int i=0;i<_cartList.size();i++)
-    {
-        _cartNum+=_cartList.at(i).getNum();
-    }
+        //如果为零则从列表中删除该行
+        if(item->text()=='0')
+        {
+            qDebug()<<"Delete current row: "<<_cartTable->item(item->row(),0)->text();
+            _cartList.removeAt(item->row());  //删除_cartList中的菜品信息
+            _cartTable->removeRow(item->row());  //删除_cartTable中的菜品信息
+            //qDebug()<<_cartList;
 
-    //更新购物车信息
-    lb_cartNumContent->setText(QString::number(_cartNum));
-    lb_cartPriceContent->setText(QString::number(_cartPrice));
+            //_cartPrice和_cartNum清零
+            _cartNum = 0;
+            _cartPrice = 0;
 
-    emit signalCartChanged(_cartList);  //发送购物车改变消息
+            //计算当前购物车总价
+            for(int i=0;i<_cartList.size();i++)
+            {
+                _cartPrice+=_cartList.at(i).getSum();
+            }
+            //计算当前购物车总数
+            for(int i=0;i<_cartList.size();i++)
+            {
+                _cartNum+=_cartList.at(i).getNum();
+            }
+
+            //更新购物车信息
+            lb_cartNumContent->setText(QString::number(_cartNum));
+            lb_cartPriceContent->setText(QString::number(_cartPrice));
+
+            emit signalCartChanged(_cartList);  //发送购物车改变消息
+
+            return;  //退出
+        }
+
+        qDebug()<<"row:"<<item->row()<<" "<<"column:"<<item->column();
+
+        QTableWidgetItem *currentItemPrice = new QTableWidgetItem;
+        const_cast<CartItem&>(_cartList.at(item->row())).setItemNums(item->text().toInt());
+        currentItemPrice->setText(QString::number(_cartList.at(item->row()).getSum())); //重新计算当前菜品总价
+        _cartTable->setItem(item->row(),2,currentItemPrice); //更新_cartTable当前菜品总价
+
+        //_cartPrice和_cartNum清零
+        _cartPrice = 0;
+        _cartNum = 0;
+
+        //计算当前购物车总价
+        for(int i=0;i<_cartList.size();i++)
+        {
+            _cartPrice+=_cartList.at(i).getSum();
+        }
+        //计算当前购物车总数
+        for(int i=0;i<_cartList.size();i++)
+        {
+            _cartNum+=_cartList.at(i).getNum();
+        }
+
+        //更新购物车信息
+        lb_cartNumContent->setText(QString::number(_cartNum));
+        lb_cartPriceContent->setText(QString::number(_cartPrice));
+
+        emit signalCartChanged(_cartList);  //发送购物车改变消息
+    }
 }

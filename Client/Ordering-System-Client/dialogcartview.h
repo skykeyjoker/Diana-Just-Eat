@@ -14,6 +14,7 @@
 #include <QPushButton>
 
 #include "cartitem.h"
+#include "myspinboxdelegate.h"
 
 class DialogCartView : public QDialog
 {

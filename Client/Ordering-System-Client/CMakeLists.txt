@@ -57,6 +57,10 @@ if(ANDROID)
     mybutton.cpp
     dialogcheckout.h
     dialogcheckout.cpp
+    myspinbox.h
+    myspinbox.cpp
+    myspinboxdelegate.h
+    myspinboxdelegate.cpp
   )
 else()
   add_executable(Ordering-System-Client
@@ -87,6 +91,10 @@ else()
     mybutton.cpp
     dialogcheckout.h
     dialogcheckout.cpp
+    myspinbox.h
+    myspinbox.cpp
+    myspinboxdelegate.h
+    myspinboxdelegate.cpp
   )
 endif()
 
