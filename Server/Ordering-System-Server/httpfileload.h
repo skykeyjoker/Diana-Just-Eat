@@ -23,7 +23,7 @@ public:
 
     bool upload();
 
-    QString getFileName();
+    QString getFileName();  //获取文件名
 
     QFile *file;
 

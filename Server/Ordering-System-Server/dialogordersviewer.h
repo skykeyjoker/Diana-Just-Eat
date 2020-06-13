@@ -20,6 +20,7 @@ class DialogOrdersViewer : public QDialog
 public:
     explicit DialogOrdersViewer(QWidget *parent = nullptr);
 
+    //界面控件
     QLabel *lb_Status = new QLabel("订单状态：");
     QLabel *lb_Status_Content = new QLabel;
     QLabel *lb_OrderNum = new QLabel("订单号：");
@@ -33,6 +34,7 @@ public:
     QLabel *lb_OrderNote = new QLabel("订单备注：");
     QTextBrowser *tb_OrderNote = new QTextBrowser;
 
+    //设置信息
     void setData(bool isHandled, QString orderNum, QString tableNum, QString orderPrice, QString orderContent, QString orderNote);
 
 signals:

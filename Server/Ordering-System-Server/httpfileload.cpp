@@ -2,19 +2,21 @@
 
 HttpFileLoad::HttpFileLoad(QString filePath, QString url, QObject *parent) : QObject(parent)
 {
+    //赋值信息，并将文件目录格式化
     _filePath = filePath;
     _filePath.replace("\\","/");
     qDebug()<<"_filePath"<<_filePath;
-    _url =url;
+    _url =url;  //http服务器网址
     qDebug()<<_url;
 
     QFileInfo info(filePath);
-    _fileName = info.fileName();
-    _fileSuffix = info.suffix();
+    _fileName = info.fileName(); //文件名
+    _fileSuffix = info.suffix(); //文件后缀名
     qDebug()<<_fileSuffix;
 
 }
 
+/* 上传函数 */
 bool HttpFileLoad::upload()
 {
     QHttpMultiPart *multiPart = new QHttpMultiPart(QHttpMultiPart::FormDataType);

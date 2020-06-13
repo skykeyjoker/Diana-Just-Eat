@@ -12,22 +12,22 @@ public:
         _itemNum=0;
     }
 
-    void addItem();
+    void addItem();  //增加一份
 
-    void removeItem();
+    void removeItem();  //减少一份
 
-    void setItemNums(int num);
+    void setItemNums(int num);  //设置菜品份数
 
-    QString getItemName() const;
+    QString getItemName() const;  //获取菜品份数
 
-    double getSum() const;
+    double getSum() const;  //获取该种菜品总价
 
-    int getNum() const;
+    int getNum() const;  //获取该种菜品总数
 
 private:
-    QString _itemName;
-    double _itemPrice;
-    int _itemNum;
+    QString _itemName; //菜品名
+    double _itemPrice; //菜品价格
+    int _itemNum;  //菜品数量
 
 };
 

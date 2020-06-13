@@ -26,12 +26,9 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
     //获取程序图片缓存目录
     _picPath=QDir(QDir::currentPath()+"/Pic");
 
+
     /* 初始化界面 */
     QHBoxLayout *mainLay = new QHBoxLayout(ui->centralwidget);
-
-
-    //_menuList = new QListWidget;
-
 
     _viewGroupBox = new QGroupBox("菜品信息");
     QVBoxLayout *cartWidget = new QVBoxLayout(_viewGroupBox);
@@ -104,21 +101,6 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
     //关联购物车按钮
     connect(btn_cart,&QPushButton::clicked,this,&ClientMainWindow::slotCartBtnClicked);
 
-        /*  connect(ui->pushButton,&QPushButton::clicked,[=](){
-
-        QStringList strlist;
-        strlist<<ui->lineTable->text()<<";"<<ui->linePrice->text()<<";"<<ui->lineMenu->text()<<";"<<ui->lineNote->text();
-
-        QString str;
-        foreach(QString s,strlist)
-        {
-            str+=s;
-        }
-        qDebug()<<str;
-        client->sendData(str.toUtf8());
-    });*/
-
-
 
     /* 状态栏信息 */
     lb_cartNumCount = new QLabel(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)),this);
@@ -189,7 +171,7 @@ bool ClientMainWindow::connectDb()
         qDebug() << "数据库连接成功";
 
 
-    /*菜单信息显示*/
+    /* 菜单信息显示 */
     loadMenu();
 
     return true;
@@ -201,34 +183,34 @@ void ClientMainWindow::on_actionSetting_triggered()
     dlg.exec();
 }
 
-void ClientMainWindow::loadMenu()
+void ClientMainWindow::loadMenu()  //加载菜品
 {
     qDebug()<<"Load menu...";
 
     ui->statusbar->showMessage("正在更新菜单信息，请稍等..."); //更新一下状态栏消息
 
     /* 清除之前的数据 */
-    if(_menuList->count())
+    if(_menuList->count())  //菜单列表
     {
         _menuList->clear();
     }
 
-    if(!_menuTypeList.isEmpty())
+    if(!_menuTypeList.isEmpty())  //菜品种类列表
     {
         _menuTypeList.clear();
     }
 
-    if(!_menuNameList.isEmpty())
+    if(!_menuNameList.isEmpty())  //菜品名列表
     {
         _menuNameList.clear();
     }
 
-    if(!_menuTypeNumList.isEmpty())
+    if(!_menuTypeNumList.isEmpty())  //菜品种类名列表
     {
         _menuTypeNumList.clear();
     }
 
-    if(!_menuFileNameList.isEmpty())
+    if(!_menuFileNameList.isEmpty())  //菜品图片文件名列表
     {
         _menuFileNameList.clear();
     }
@@ -250,22 +232,23 @@ void ClientMainWindow::loadMenu()
     //先遍历menuType表，记录菜品分类
     QSqlQuery query(db);
     qDebug()<<query.exec("SELECT * FROM menuType WHERE 1");
-    int menuTypeCount = query.size();
+    int menuTypeCount = query.size();  //菜品种类总共数量
 
     qDebug()<<"更新："<<menuTypeCount;
-    query.next();
+    query.next();  //必须执行一下.next()让他指向第一条记录，否则记录会指向第一条记录之前的记录
 
     for(int i=1;i<=menuTypeCount;i++)
     {
-        _menuCount+=query.value(2).toInt();
+        _menuCount+=query.value(2).toInt(); //_menuCount记录着一共多少菜品（是总菜品数！而不是总菜品种类数！）
 
         query.next();
     }
 
-    query.first();
+    query.first();  //重新指向第一条记录
 
     for(int i=1;i<=menuTypeCount;i++)
     {
+        //添加一种菜品种类
         QString menuTypeName = query.value(1).toString();
         qDebug()<<menuTypeName;
         int menuTypeNum = query.value(2).toInt();
@@ -284,6 +267,7 @@ void ClientMainWindow::loadMenu()
 
         for(int j=1;j<=menuTypeNum;j++)
         {
+            //添加一个菜品
             QString currenFileName = dishQuery.value(1).toString()+dishQuery.value(5).toString().mid(dishQuery.value(5).toString().lastIndexOf("."),-1);
             QString currentDishName = dishQuery.value(1).toString();
             double currentDishPrice = dishQuery.value(4).toDouble();
@@ -309,7 +293,7 @@ void ClientMainWindow::loadMenu()
 
                 qDebug()<<"download finished...";
 
-                emit signalAddAlreadyDownloadMenuCount();
+                emit signalAddAlreadyDownloadMenuCount();  //下载完一张图片，就发送一个下载完成消息
 
             });
 
@@ -327,15 +311,17 @@ void ClientMainWindow::slotUpdateMenu()
     loadMenu();
 }
 
-void ClientMainWindow::slotItemClicked(QListWidgetItem *item)
+void ClientMainWindow::slotItemClicked(QListWidgetItem *item)  //选择一个菜品，展示菜品详细信息
 {
     qDebug()<<"item clicked";
     QString itemStr = item->text();
+    //分离菜品信息
     QString dishName = itemStr.mid(0,itemStr.indexOf("\t"));
     QString dishPrice = itemStr.mid(itemStr.indexOf("\t")+1,itemStr.indexOf("\n")-itemStr.indexOf("\t")-1);
     QString dishInfo = itemStr.mid(itemStr.lastIndexOf("\n")+1,-1);
     QString dishPhotoFileName;
 
+    //图片信息分离
     if(_picPath.exists(dishName+".png"))
     {
        dishPhotoFileName = _picPath.path()+"/"+dishName+".png";
@@ -355,6 +341,7 @@ void ClientMainWindow::slotItemClicked(QListWidgetItem *item)
     qDebug()<<dishPhotoFileName;
     qDebug()<<_menuNameList;
 
+    //展示菜品信息
     lb_pic->setPixmap(QPixmap(dishPhotoFileName));
     lb_dishNameContent->setText(dishName);
     lb_dishPriceContent->setText(dishPrice);
@@ -363,14 +350,14 @@ void ClientMainWindow::slotItemClicked(QListWidgetItem *item)
 
 void ClientMainWindow::slotAddAlreadyDownloadMenuCount()
 {
-    _alreadyDownloadMenuCount++;
+    _alreadyDownloadMenuCount++;  //已经下载的图片数+1
 
     qDebug()<<"alreadyDownloadMenuTypeCount:"<<_alreadyDownloadMenuCount;
 
 
-    if(_alreadyDownloadMenuCount==_menuCount)
+    if(_alreadyDownloadMenuCount==_menuCount)  //如果图片全部下载完成
     {
-        insertItems();
+        insertItems();  //菜品图片全部下载完成后，准备开始添加菜品信息到listwidget中
     }
 }
 
@@ -528,30 +515,18 @@ void ClientMainWindow::slotCartCheckOut()
     connect(dlg,pSignalReadyCheckOut,this,pSlotReadyCheckOut);
 }
 
-void ClientMainWindow::slotReadyCheckOut(QString note)
+void ClientMainWindow::slotReadyCheckOut(QString note)  //结帐，发送socket信息
 {
     qDebug()<<"slotReadyCheckOut";
 
 /*
-        QStringList strlist;
-        strlist<<ui->lineTable->text()<<";"<<ui->linePrice->text()<<";"<<ui->lineMenu->text()<<";"<<ui->lineNote->text();
-
-        QString str;
-        foreach(QString s,strlist)
-        {
-            str+=s;
-        }
-        qDebug()<<str;
-        client->sendData(str.toUtf8());
-
 A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
-
 */
-    QStringList dataList;
+    QStringList dataList; //用一个QStringList来存取要发送的订单socket信息
     dataList<<_tableNum<<";";
     dataList<<QString::number(_cartPriceCount)<<";";
 
-    QString cartContent;
+    QString cartContent;  //讲购物车菜品信息格式化合并并存入到datalist
     for(int i=0; i<cartLists.size(); i++)
     {
         QString currentCartItem;
@@ -567,13 +542,14 @@ A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];�
     dataList<<note;
     qDebug()<<dataList;
 
-    QString data;
+    QString data;  //讲datalist转为整个的QString
     foreach(QString s, dataList)
     {
         data+=s;
     }
     qDebug()<<data;
-    bool ret = client->sendData(data.toUtf8());
+
+    bool ret = client->sendData(data.toUtf8());  //发送socket信息
     if(ret == true)
     {
         QMessageBox::information(this,"下单成功","已成功下单！");

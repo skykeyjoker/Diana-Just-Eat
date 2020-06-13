@@ -6,7 +6,7 @@ DialogAddRecord::DialogAddRecord(QWidget *parent) : QDialog(parent)
     setWindowTitle("添加菜品");
     setWindowIcon(QIcon(":/Res/at8.ico"));
 
-
+    //初始化界面信息
     QVBoxLayout *vlay = new QVBoxLayout(this);
 
     QHBoxLayout *hlay_Name = new QHBoxLayout(NULL);
@@ -69,8 +69,8 @@ DialogAddRecord::DialogAddRecord(QWidget *parent) : QDialog(parent)
 
     //选择图片按钮
     connect(btn_Photo, &QPushButton::clicked, [=]() {
-        picPath = QFileDialog::getOpenFileName(this, "选择菜品图片", "", "图片文件 (*.png *.jpg *.jpeg)");
-        if (picPath.isEmpty())
+        picPath = QFileDialog::getOpenFileName(this, "选择菜品图片", "", "图片文件 (*.png *.jpg *.jpeg)");  //打开文件目录
+        if (picPath.isEmpty())  //如果未选择打开文件
         {
             QMessageBox::critical(this, "错误", "打开文件失败");
         }
@@ -81,11 +81,11 @@ DialogAddRecord::DialogAddRecord(QWidget *parent) : QDialog(parent)
             _pix = QPixmap(picPath);
             brower->setPixmap(_pix);
         }
+
     });
 
     //取消按钮
     connect(btnCancel,&QPushButton::clicked,this,&DialogAddRecord::slotBtnCancelClicked);
-
     //提交按钮
     connect(btnSubmit,&QPushButton::clicked,this,&DialogAddRecord::slotBtnSubmitClicked);
 }

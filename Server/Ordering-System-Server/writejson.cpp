@@ -13,6 +13,7 @@ bool WriteJson::writeToFile()
         return false;
     }
     QJsonObject obj;
+    //将sql数据库的地址、数据库名、用户名、密码和http图片服务器的地址加密
     _dbHost = XorEncryptDecrypt(_dbHost,19);
     _dbName = XorEncryptDecrypt(_dbName,19);
     _dbUser = XorEncryptDecrypt(_dbUser,19);
@@ -31,7 +32,7 @@ bool WriteJson::writeToFile()
 
     QJsonDocument doc;
     doc.setObject(obj);
-
+    //写入到json配置文件
     file.write(doc.toJson());
     qDebug()<<"write to file";
     file.close();

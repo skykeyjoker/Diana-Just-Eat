@@ -55,7 +55,6 @@ bool ReadJson::readFromFile(const QString &fileName)
     _picHost = XorEncryptDecrypt(_picHost,19);
 
 
-
     qDebug() << "_dbHost:" << _dbHost;
     qDebug() << "_dbName:" << _dbName;
     qDebug() << "_dbUser:" << _dbUser;

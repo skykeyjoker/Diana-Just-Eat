@@ -6,6 +6,7 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent)
     setWindowTitle("修改菜品信息");
     setWindowIcon(QIcon(":/Res/at8.ico"));
 
+    //初始化界面
     QVBoxLayout *vlay = new QVBoxLayout(this);
 
     QHBoxLayout *hlay_Name = new QHBoxLayout(NULL);
@@ -61,10 +62,10 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent)
     vlay->addLayout(hlay_Btn);
 
 
-
+    //连接选择图片按钮信号与槽
     connect(btn_Photo, &QPushButton::clicked, [=]() {
-        picPath = QFileDialog::getOpenFileName(this, "选择菜品图片", "", "图片文件 (*.png *.jpg *.jpeg)");
-        if (picPath.isEmpty())
+        picPath = QFileDialog::getOpenFileName(this, "选择菜品图片", "", "图片文件 (*.png *.jpg *.jpeg)"); //打开文件对话框
+        if (picPath.isEmpty())  //如果未打开任何文件
         {
             QMessageBox::critical(this, "错误", "打开文件失败");
         }
@@ -83,21 +84,22 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent)
 
     //取消按钮
     connect(btnCancel,&QPushButton::clicked,this,&DialogEditRecord::slotBtnCancelClicked);
-
     //提交按钮
     connect(btnSubmit,&QPushButton::clicked,this,&DialogEditRecord::slotBtnSubmitClicked);
+
 }
 
 void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto, QString url)
 {
+    //传入信息
     _dishId = dishId;
     _dishName = dishName;
     _dishType = dishType;
     _dishInfo = dishInfo;
     _dishPrice = dishPrice;
     _dishPhoto = dishPhoto;
-
     _url = url;
+
 
     // 设置内容
     le_Name->setText(_dishName);
@@ -105,11 +107,7 @@ void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, 
     le_Info->setText(_dishInfo);
     le_Price->setText(_dishPrice);
 
-    //设置图片
-    //_pic = toQPixmap(dishPhoto);
-
-    //brower->setPixmap(_pic);
-
+    //显示图片图片
     brower->setText(tr("<img src=\"%1\"></img>").arg(QDir::currentPath()+"/Pic/"+dishName+dishPhoto.mid(dishPhoto.lastIndexOf("."),-1)));
     /*
     qDebug()<<_dishId;
@@ -120,7 +118,6 @@ void DialogEditRecord::setValue(int dishId, QString dishName, QString dishType, 
     qDebug()<<_dishPhoto;
 */
 }
-
 
 void DialogEditRecord::slotBtnCancelClicked()
 {
@@ -135,15 +132,17 @@ void DialogEditRecord::slotBtnSubmitClicked()
         return;
     }
 
+    //赋值最新信息
     _dishName = le_Name->text();
     _dishType = le_Type->text();
     _dishInfo = le_Info->toPlainText();
     _dishPrice = le_Price->text();
 
     // upload file
-    if(!le_Photo->text().isEmpty())
+    if(!le_Photo->text().isEmpty())  //如果图片路径编辑框不为空，那就是选择了新的图片
     {
         //先删除远程图片
+        //这里未对远程的图片文件扩展名进行判断，所以直接遍历三种文件扩展名，调用HttpFileUpdate进行删除
         HttpFileUpdate fileUpdate(_dishName+".jpg",_url+"/update.php");
         fileUpdate.update();
 
@@ -154,7 +153,7 @@ void DialogEditRecord::slotBtnSubmitClicked()
         fileUpdate2.update();
 
 
-        HttpFileLoad upload(le_Photo->text(),_url+"/upload_file.php");
+        HttpFileLoad upload(le_Photo->text(),_url+"/upload_file.php");  //使用HttpFileLoad进行文件上传
         if(!upload.upload())
         {
             QMessageBox::critical(this,"提交失败","图片上传失败！");
@@ -177,7 +176,7 @@ void DialogEditRecord::slotBtnSubmitClicked()
         qDebug()<<"文件已存在";
         QDir dir(QDir::currentPath()+"/Pic");
         qDebug()<<"dir:"<<dir.dirName();
-        qDebug()<<dir.remove(fileName);
+        qDebug()<<dir.remove(fileName);  //删除之前的缓存文件
     }
     if(QFile::copy(picPath,newPath))
     {
@@ -186,7 +185,7 @@ void DialogEditRecord::slotBtnSubmitClicked()
     else qDebug()<<"拷贝失败";
 
 
-    emit signalUpdate(_dishId,_dishName,_dishType,_dishInfo,_dishPrice,_dishPhoto);
+    emit signalUpdate(_dishId,_dishName,_dishType,_dishInfo,_dishPrice,_dishPhoto); //发送菜品信息更新信号
     QMessageBox::information(this,"成功","修改菜品信息成功！");
 }
 

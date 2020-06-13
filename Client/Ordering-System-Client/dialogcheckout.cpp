@@ -6,6 +6,7 @@ DialogCheckOut::DialogCheckOut(const QList<CartItem>&cartlist, int totalNum, int
     this->setWindowTitle("订单确认");
     this->setFixedSize(600,600);
 
+    /* 初始化界面 */
     QVBoxLayout *lay = new QVBoxLayout(this);
     QTableWidget *table = new QTableWidget;
     QLabel *lb_totalNum = new QLabel("购物车菜品总数：");
@@ -92,7 +93,7 @@ DialogCheckOut::DialogCheckOut(const QList<CartItem>&cartlist, int totalNum, int
         int ret = QMessageBox::question(this,"请求确认","您确认要提交此订单吗？");
         if(ret == QMessageBox::Yes)
         {
-            emit signalReadyCheckOut(_textNote->toPlainText());
+            emit signalReadyCheckOut(_textNote->toPlainText()); //发送结算消息
             this->close();
         }
     });

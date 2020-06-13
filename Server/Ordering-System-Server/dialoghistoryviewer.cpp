@@ -85,24 +85,29 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     timeEditTo->setVisible(false);
     timeEditFrom->setVisible(false);
     btn_search->setVisible(false);
+
+
     //单选按钮事件
     connect(RadioAll,&QRadioButton::clicked,[=](){
-        searchHistory();
-        btn_search->setVisible(false);
-        timeEditTo->setVisible(false);
-        timeEditFrom->setVisible(false);
+        //全部显示
+        searchHistory(); //调用参数为空的searchHistory函数
+        btn_search->setVisible(false);  //搜索按钮不可视
+        timeEditTo->setVisible(false);  //时间截止编辑框不可视
+        timeEditFrom->setVisible(false);  //时间起始编辑框不可视
     });
 
     connect(RadioBefore,&QRadioButton::clicked,[=](){
-        timeEditTo->setVisible(true);
-        timeEditFrom->setVisible(false);
-        btn_search->setVisible(true);
+        //显示之前
+        timeEditTo->setVisible(true);  //时间截止编辑框可视
+        timeEditFrom->setVisible(false);  //时间起始编辑框不可视
+        btn_search->setVisible(true);  //搜索按钮可视
     });
 
     connect(RadioBetween,&QRadioButton::clicked,[=](){
-        timeEditTo->setVisible(true);
-        timeEditFrom->setVisible(true);
-        btn_search->setVisible(true);
+        //显示之间
+        timeEditTo->setVisible(true);  //时间截止编辑框可视
+        timeEditFrom->setVisible(true);  //时间起始编辑框可视
+        btn_search->setVisible(true);  //搜索按钮可视
     });
 
 
@@ -110,15 +115,16 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     boxSetting->setEnabled(false); //先禁止操作
 
     QSqlQuery query(sqliteDb);
-    query.exec("SELECT *FROM Orders");
+    query.exec("SELECT *FROM Orders"); //选中整个表
 
     while(query.next())
     {
-        _countAllOrders++;
+        _countAllOrders++; //记录一下总订单数
         //qDebug() << query.value(0).toInt() << query.value(1).toString() << query.value(2).toString()<<query.value(3).toDouble()<<query.value(4).toString()<<query.value(5).toString();
-        _table->setRowCount(_table->rowCount()+1);
+        _table->setRowCount(_table->rowCount()+1);  //插入新行
 
-        int currentRow = _table->rowCount()-1;
+        int currentRow = _table->rowCount()-1; //获取当前行
+        //赋值当前行
         _table->setItem(currentRow,0,new QTableWidgetItem(QString::number(query.value(0).toInt())));
         _table->setItem(currentRow,1,new QTableWidgetItem(query.value(1).toString()));
         _table->setItem(currentRow,2,new QTableWidgetItem(query.value(2).toString()));
@@ -127,12 +133,15 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
         _table->setItem(currentRow,5,new QTableWidgetItem(query.value(5).toString()));
     }
     boxSetting->setEnabled(true); //遍历完后恢复操作
+
+    //更新信息
     lb_count->setText(tr("共搜索到%1条订单记录").arg(QString::number(_countAllOrders)));
 
 
     //绑定按钮
     connect(btn_view,&QPushButton::clicked,[=](){
-        if(_table->currentIndex().row()==-1)
+        /* 查看订单按钮 */
+        if(_table->currentIndex().row()==-1)  //判断是否选中一行
         {
             QMessageBox::critical(this,"查看失败","未选中任何行!");
             return;
@@ -145,23 +154,19 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
     });
 
     connect(btn_search,&QPushButton::clicked,[=](){
+        /* 搜索按钮 */
         qDebug()<<timeEditFrom->dateTime().toString("yyyyMMddhhmmss");
         qDebug()<<timeEditTo->dateTime().toString("yyyyMMddhhmmss");
 
-        if(!RadioAll->isChecked())
-        {
-            searchHistory();
-        }
-
-        if((timeEditFrom->dateTime()>timeEditTo->dateTime())&&!RadioBefore->isChecked())
+        if((timeEditFrom->dateTime()>timeEditTo->dateTime())&&!RadioBefore->isChecked())  //判断时间起止的合法性
         {
             QMessageBox::critical(this,"错误","请重新检查时间筛选设置！");
         }
         else
         {
-            if(timeEditTo->isVisible()&&timeEditFrom->isVisible())
+            if(timeEditTo->isVisible()&&timeEditFrom->isVisible()) //如果是“查看之间”
                 searchHistory(timeEditFrom->dateTime().toString("yyyyMMddhhmmss"),timeEditTo->dateTime().toString("yyyyMMddhhmmss"));
-            if(!timeEditFrom->isVisible())
+            if(!timeEditFrom->isVisible()) //如果是“查看之前”
                 searchHistory("NULL",timeEditTo->dateTime().toString("yyyyMMddhhmmss"));
         }
     });
@@ -190,10 +195,12 @@ bool DialogHistoryViewer::connectDb()
     return ret;
 }
 
+/* SQLite数据库查询 */
 void DialogHistoryViewer::searchHistory(QString from, QString to)
 {
     boxSetting->setEnabled(false);  //遍历时先禁止
 
+    //格式化时间信息
     QDateTime fromTime=QDateTime::fromString(from,"yyyyMMddhhmmss");
     QDateTime toTime=QDateTime::fromString(to,"yyyyMMddhhmmss");
 
@@ -202,51 +209,55 @@ void DialogHistoryViewer::searchHistory(QString from, QString to)
 
     _countSelectedOrders=_countAllOrders;
 
-    if(from=="NULL" && to=="NULL")
+    if(from=="NULL" && to=="NULL") //如果两个参数都为“NULL”,即搜索全部
     {
-        for(int i=0;i<_table->rowCount();i++)
+        for(int i=0;i<_table->rowCount();i++)  //将所有的行都取消隐藏
         {
             if(_table->isRowHidden(i)==true)
             {
                 _table->setRowHidden(i,false);
             }
         }
-        lb_count->setText(tr("共搜索到%1条订单记录").arg(_countAllOrders));
+        lb_count->setText(tr("共搜索到%1条订单记录").arg(_countAllOrders));  //更新订单信息
     }
 
-    if(from=="NULL" && to!="NULL")
+    if(from=="NULL" && to!="NULL")  //如果为“查看之前”
     {
         for(int i=0;i<_table->rowCount();i++)
         {
-            QDateTime currentTime = QDateTime::fromString(_table->item(i,1)->text().mid(0,14),"yyyyMMddhhmmss");
+            QDateTime currentTime = QDateTime::fromString(_table->item(i,1)->text().mid(0,14),"yyyyMMddhhmmss"); //将订单号前半部分即时间取出
             qDebug()<<currentTime.toString("yyyyMMddhhmmss");
             if(currentTime > toTime)
             {
                 qDebug()<<"44444";
-                _table->setRowHidden(i,true);
+                _table->setRowHidden(i,true);  //隐藏位于设定时间之后的订单
                 _countSelectedOrders--;
             }
+            else
+                _table->setRowHidden(i,false); //显示合乎条件的订单
 
         }
-        lb_count->setText(tr("共搜索到%1条订单记录").arg(_countSelectedOrders));
+        lb_count->setText(tr("共搜索到%1条订单记录").arg(_countSelectedOrders));  //更新订单信息
     }
 
-    if(from!="NULL" && to!="NULL")
+    if(from!="NULL" && to!="NULL")  //如果为“查看之间”
     {
         for(int i=0;i<_table->rowCount();i++)
         {
-            QDateTime currentTime = QDateTime::fromString(_table->item(i,1)->text().mid(0,14),"yyyyMMddhhmmss");
+            QDateTime currentTime = QDateTime::fromString(_table->item(i,1)->text().mid(0,14),"yyyyMMddhhmmss");  //将订单前半部分即时间取出
             qDebug()<<currentTime.toString("yyyyMMddhhmmss");
 
             if(currentTime < fromTime || currentTime > toTime)
             {
                 qDebug()<<"2333333";
-                _table->setRowHidden(i,true);
+                _table->setRowHidden(i,true);  //隐藏不位于设定时间段的订单
                 _countSelectedOrders--;
             }
+            else
+                _table->setRowHidden(i,false);  //喜爱你是合乎条件的订单
 
         }
-        lb_count->setText(tr("共搜索到%1条订单记录").arg(_countSelectedOrders));
+        lb_count->setText(tr("共搜索到%1条订单记录").arg(_countSelectedOrders));  //更新订单信息
     }
 
     boxSetting->setEnabled(true); //遍历完成后恢复

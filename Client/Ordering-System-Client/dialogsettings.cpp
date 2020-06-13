@@ -7,6 +7,7 @@ DialogSettings::DialogSettings(QString dbHost, QString dbName, QString dbUser, Q
     this->setWindowIcon(QIcon(":/Res/settings.png"));
 
 
+    /* 初始化界面 */
     QVBoxLayout *layConfig = new QVBoxLayout(this);
 
     QGroupBox *groupMySql = new QGroupBox("数据库设置");
