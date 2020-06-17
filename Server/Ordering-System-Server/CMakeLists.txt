@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #    endif()
 #endif()
 
-find_package(Qt5 COMPONENTS Widgets Gui Core Network Sql Multimedia REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Gui Core Network Sql Charts Multimedia REQUIRED)
 qt5_add_resources(qrc_FILES res.qrc)
 
 if(ANDROID)
@@ -60,6 +60,8 @@ if(ANDROID)
     mydatetimeselect.cpp
     mybutton.h
     mybutton.cpp
+    dialogchartview.h
+    dialogchartview.cpp
   )
 else()
   add_executable(Ordering-System-Server
@@ -94,7 +96,9 @@ else()
     mydatetimeselect.cpp
     mybutton.h
     mybutton.cpp
+    dialogchartview.h
+    dialogchartview.cpp
   )
 endif()
 
-target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Multimedia)
+target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Charts Qt5::Multimedia)

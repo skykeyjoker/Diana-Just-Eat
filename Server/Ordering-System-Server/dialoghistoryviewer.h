@@ -29,6 +29,7 @@
 
 #include "dialogordersviewer.h"
 #include "mydatetimeselect.h"
+#include "dialogchartview.h"
 
 class DialogHistoryViewer : public QDialog
 {

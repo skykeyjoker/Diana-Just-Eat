@@ -44,12 +44,16 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
 
     QHBoxLayout *layBtn = new QHBoxLayout;
     QPushButton *btn_view = new QPushButton("查看该订单");
+    QPushButton *btn_chart = new QPushButton("查看销售图表");
     lb_count = new QLabel;
 
     layBtn->addStretch(4);
     layBtn->addWidget(btn_view);
     layBtn->addStretch(4);
+    layBtn->addWidget(btn_chart);
+    layBtn->addStretch(4);
     layBtn->addWidget(lb_count);
+
 
 
     lay->addWidget(boxSetting);
@@ -169,6 +173,11 @@ DialogHistoryViewer::DialogHistoryViewer(QWidget *parent) : QDialog(parent)
             if(!timeEditFrom->isVisible()) //如果是“查看之前”
                 searchHistory("NULL",timeEditTo->dateTime().toString("yyyyMMddhhmmss"));
         }
+    });
+
+    connect(btn_chart,&QPushButton::clicked,[=](){
+        DialogChartView dlg;
+        dlg.exec();
     });
 }
 
