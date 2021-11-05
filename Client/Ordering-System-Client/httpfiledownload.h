@@ -1,37 +1,25 @@
 #ifndef HTTPFILEDOWNLOAD_H
 #define HTTPFILEDOWNLOAD_H
 
-#include <QDir>
+#include <QDebug>
+#include <QEventLoop>
 #include <QFile>
-#include <QFileInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
-#include <QObject>
-#include <QPixmap>
-#include <QUrl>
+#include <QRunnable>
 
 // TODO 改进HTTP文件下载
 // TODO 重写下载worker，继承自QRunnable
 
-class HttpFileDownload : public QObject {
-	Q_OBJECT
+class HttpFileDownload : public QRunnable {
 public:
-	explicit HttpFileDownload(QString url, QString fileName, QObject *parent = nullptr);
+	explicit HttpFileDownload(const QString& url, const QString& fileName);
+	void run() override;
 
-	QNetworkAccessManager netManager;
-	QFile *file;
-	QNetworkReply *reply;
+private:
 	QString _url;
 	QString _fileName;
-
-signals:
-	void signalDownloadFinished();
-
-public slots:
-	void httpFinished();
-	void httpReadyRead();
-	void updateDataReadProgress(qint64, qint64);
 };
 
 #endif// HTTPFILEDOWNLOAD_H

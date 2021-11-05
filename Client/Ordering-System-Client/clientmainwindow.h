@@ -20,6 +20,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTextBrowser>
+#include <QThreadPool>
 #include <QTimer>
 #include <QToolBox>
 #include <QTreeWidget>

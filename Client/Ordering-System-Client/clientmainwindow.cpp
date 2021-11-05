@@ -35,6 +35,11 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 	//获取程序图片缓存目录
 	if (!QDir::current().exists("Pic")) {
 		QDir::current().mkdir("Pic");
+	} else {
+		// 清空Pic目录
+		QDir picDir(QDir::currentPath() + "/Pic");
+		picDir.removeRecursively();
+		QDir::current().mkdir("Pic");
 	}
 	_picPath = QDir(QDir::currentPath() + "/Pic");
 
@@ -185,7 +190,16 @@ void ClientMainWindow::showMenu() {
 	}
 
 	// TODO 使用线程池下载图片
+	QThreadPool threadPool;
+	threadPool.setMaxThreadCount(4);
 	// TODO 重写下载worker，继承自QRunnable
+	for (int i = 0; i < _dishes.size(); i++) {
+		QString currentPhotoUrl = "http://" + _tcpHost + "/" + _dishes[i].getPhoto();
+		QString currentPhotoName = _picPath.path() + "/" + _dishes[i].getPhoto();
+		threadPool.start(new HttpFileDownload(currentPhotoUrl, currentPhotoName));
+	}
+	threadPool.waitForDone();
+
 	// TODO 图片下载完成后将图片插入
 	for (int i = 0; i < _menuList->count(); i++) {
 		if (!_menuTypeList.contains(_menuList->item(i)->toolTip()))// 子类
