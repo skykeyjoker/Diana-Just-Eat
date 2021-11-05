@@ -4,6 +4,93 @@
 
 预测是大版本颠覆= =
 
+## 重构版本架构设计
+
+菜单信息、订单历史记录储存在服务端本地的SQLite数据库中。
+
+服务端集成一个轻量WEB服务器，为客户端提供图片下载功能。
+
+服务端编辑更新菜单后，向所有客户端发送菜单更新消息，提醒客户端更新本地菜单信息，菜单更新消息需具体到菜品， 并表明是否需要重新下载菜品图片。 某个客户端（启动时必须）可通过向服务端发送菜单请求消息，获取服务端返回的完整菜单。
+
+服务端、客户端通过两条TCP Socket进行通信：
+
+* 客户端有三种消息：
+  * 请求菜单 `0`
+  * 新订单 `1`
+  * 存活状态查询回应 `2` （2号信道）
+* 服务端消息：
+  * 菜单请求返回 `0`
+  * 菜单更新 `1`
+  * 客户端存活状态查询 `2` （2号信道）
+
+客户端JSON格式：
+
+* 请求菜单：
+
+  ```json
+  {
+    "code": 0
+  }
+  ```
+
+* 新订单：
+
+* 存货状态回应：
+
+服务端JSON格式：
+
+* 菜单请求返回：
+  ```json
+  {
+    "code": 0,
+    "menu": [
+      {
+        "Name": "青椒肉丝",
+        "Type": "小炒",
+        "Info": "家常小炒，富含维生素C",
+        "Price": 12.0,
+        "Photo": "QingJiaoRouSi.png"
+      },
+      {
+        "Name": "五花肉鸡公煲",
+        "Type": "鸡公煲",
+        "Info": "五花肉鸡公煲，分量超足！",
+        "Price": 25.0,
+        "Photo": "WuHuaRouJiGongBao.png"
+      },
+      {
+        "Name": "原味鸡公煲",
+        "Type": "鸡公煲",
+        "Info": "原味鸡公煲，原汁原味，分量超足！",
+        "Price": 20.0,
+        "Photo": "JiGongBao.png"
+      }
+    ],
+    "menuType":[
+      {
+        "Name": "小炒",
+        "Num": 1
+      },
+      {
+        "Name": "鸡公煲",
+        "Num": 2
+      },
+      {
+        "Name": "饺子馄饨",
+        "Num": 0
+      }
+    ]
+  }
+  ```
+* 菜单更新
+* 客户端存活状态查询
+
+若服务端查询到某客户端超时，则从客户端列表中删除该客户端。若客户端检测到与服务器链接断开，则报错。
+
+（菜单）数据库操作封装在现成的类内，服务端使用封装好的接口操作服务器。客户端不需要接触数据库操作。
+
+服务器端维护一个简易HTTP服务器，提供菜单照片下载。
+
 ## 项目简介
 
 一个基于Qt5实现的自主订餐系统。大量使用了TCP，MySql，Sqlite相关技术，~~支持多平台操作~~（理论上能跑Qt的操作环境就支持）。
@@ -14,7 +101,8 @@
 
   * **实时**接收客户端订单，并能对订单进行查看、处理和重新处理已经处理的订单。已经处理的订单在**规定时间**后会归档。使用*QTcpServer*和*QTcpSocket*实现服务端与客户端通信。
   * 查看历史订单。历史订单储存在**本地**Sqlite数据库中。使用*QSqlDataBase*等数据库操作封装库实现。
-  * 查看、修改菜单信息，支持对菜单进行增、删、查、改操作。为支持服务端、多客户端同时查看菜单信息，将菜单信息储存在**远程**MySql数据库中。使用*QSqlDataBase*等数据库操作封装库以及*QNetworkAccessManager*等封装库实现。
+  * 查看、修改菜单信息，支持对菜单进行增、删、查、改操作。为支持服务端、多客户端同时查看菜单信息，将菜单信息储存在**远程**MySql数据库中。使用*QSqlDataBase*等数据库操作封装库以及*
+    QNetworkAccessManager*等封装库实现。
   * 对服务端配置进行修改，如远程Mysql服务端信息，本地Tcp服务端信息。涉及Json文件的读写。使用到了*QJson*等Json文件操作相关封装库。
 
 * 客户端实现4个主要功能
@@ -24,19 +112,12 @@
   * 提交订单至服务端
   * 修改客户端相关配置信息，如服务端Tcp服务信息。
 
-
-
-
-
 项目截图：
 
 （写完再放）
 
 
 ------
-
-
-
 
 ## 具体功能实现
 
@@ -79,21 +160,22 @@ upload_file.php
 update.php
 ```
 
-
-
-
-
 #### 实时订单接收与处理
 
-服务端程序启动后，会创建名为*_tcpServer*的Tcp服务端，并使用`_tcpServer->listen(QHostAddress::Any, _tcpPort)`启动监听（*_tcpPort*来自于配置文件）。并通过`connect(_tcpServer,&QTcpServer::newConnection,this,&ServerMainWindow::slotNewConnection)`绑定信号与槽，当有客户端连接时，调用*slotNewConnection*()方法。
+服务端程序启动后，会创建名为*_tcpServer*的Tcp服务端，并使用`_tcpServer->listen(QHostAddress::Any, _tcpPort)`启动监听（*_tcpPort*
+来自于配置文件）。并通过`connect(_tcpServer,&QTcpServer::newConnection,this,&ServerMainWindow::slotNewConnection)`
+绑定信号与槽，当有客户端连接时，调用*slotNewConnection*()方法。
 
- *slotNewConnection()*将会通过`while(_tcpServer->hasPendingConnections())`判断是否有未处理的连接，将新的socket连接存入*QList<QTcpSocket \* >*类型的*_tcpSocket*中。并使用`connect(currentSocket,&QTcpSocket::readyRead,this,&ServerMainWindow::slotReadyRead)`为新的scoket提供槽函数*slotReadyRead()*，来接受数据。
+*slotNewConnection()*将会通过`while(_tcpServer->hasPendingConnections())`判断是否有未处理的连接，将新的socket连接存入*QList<QTcpSocket \* >*
+类型的*_tcpSocket*中。并使用`connect(currentSocket,&QTcpSocket::readyRead,this,&ServerMainWindow::slotReadyRead)`为新的scoket提供槽函数*
+slotReadyRead()*，来接受数据。
 
 *slotReadyRead()*循环`readAll()`接收数据。数据格式如下：
 
 > A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
 
-依次为：**桌号;订单内容;订单总价格;订单备注**。可见，不同数据段通过英文标点`;`分隔。因此可用*QString*类中自带的`QString::section()`进行分割。分割好的消息填入名为*_table_Orders*的*QTableWidget*中。并同时更新订单统计信息:`_OrdersCount++;`，`_OrdersNoCount++;`。*_OrdersCount*存储**总订单数**，*_OrdersNoCount*存储未处理订单数。
+依次为：**桌号;订单内容;订单总价格;订单备注**。可见，不同数据段通过英文标点`;`分隔。因此可用*QString*类中自带的`QString::section()`进行分割。分割好的消息填入名为*_table_Orders*的*
+QTableWidget*中。并同时更新订单统计信息:`_OrdersCount++;`，`_OrdersNoCount++;`。*_OrdersCount*存储**总订单数**，*_OrdersNoCount*存储未处理订单数。
 
 订单号共有19位数字，格式如下：
 
@@ -106,7 +188,8 @@ update.php
 
 点击*btnHandle*和*btnReHandle*按钮将处理或者重新处理订单。处理和重新处理订单时应判断一下*_table_Orders*是否已选中一行。
 
-订单受到处理后，启动一个*QTimer*:`clearTimer->start(_clearShot*1000);`，并将QTimer设置为单次执行`clearTimer->setSingleShot(true); `。在规定好的*_clearShot*时间后将订单从*_table_Orders*中删除并存入本地Sqlite数据库即历史订单数据库中。删除功能目前采用遍历*_table_Orders*的方法来删除指定订单。
+订单受到处理后，启动一个*QTimer*:`clearTimer->start(_clearShot*1000);`，并将QTimer设置为单次执行`clearTimer->setSingleShot(true); `。在规定好的*_
+clearShot*时间后将订单从*_table_Orders*中删除并存入本地Sqlite数据库即历史订单数据库中。删除功能目前采用遍历*_table_Orders*的方法来删除指定订单。
 
 再讲一下界面控件相关细节问题。
 
@@ -126,7 +209,6 @@ update.php
    _table_Orders->setEditTriggers(QAbstractItemView::NoEditTriggers);  //设置为禁止编辑
    ```
 
-   
 
 3. 新订单声音提醒。
 
@@ -138,7 +220,6 @@ update.php
    sound->play();
    ```
 
-   
 
 4. 状态栏信息更新问题。通过以下方式初始化订单栏。
 
@@ -169,10 +250,6 @@ update.php
    labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
    ```
 
-   
-
-   
-
 #### 历史订单查看
 
 通过在*tab_Orders*界面点击*btnViewer*进入*DialogHistoryViewer*历史订单查看界面。
@@ -185,10 +262,6 @@ update.php
 
 1. 单选按钮组将会影响时间编辑框的显示。“全部显示”选中，无时间编辑框显示，“显示之前”选中，仅显示一个时间编辑框，“显示之间”，显示两个时间编辑框。
 2. 目前性能较低，在每次点选不同单选按钮之后，将会重新遍历显示全部历史订单。
-
-
-
-
 
 #### 查看修改菜单信息
 
@@ -293,13 +366,10 @@ else
 ?>
 ```
 
-
-
-  
-
 ###### 向客户端发送更新菜单消息
 
-当服务端修改菜单数据库后，发送`sendMenuUpdateSignal()`消息，调用匹配好的槽函数`slotSendMenuUpdateMessage()`向客户端发送消息。应使用循环`for(int i=0; i<_tcpSocket.size(); i++)`向全部在线客户端发送消息：
+当服务端修改菜单数据库后，发送`sendMenuUpdateSignal()`消息，调用匹配好的槽函数`slotSendMenuUpdateMessage()`
+向客户端发送消息。应使用循环`for(int i=0; i<_tcpSocket.size(); i++)`向全部在线客户端发送消息：
 
 ```cpp
 QTcpSocket *currentSocket;
@@ -310,10 +380,6 @@ for(int i=0; i<_tcpSocket.size(); i++)
     currentSocket->write(QString("[Menu Updated]").toUtf8());
 }
 ```
-
-
-
-
 
 #### 修改服务器配置
 
@@ -326,57 +392,36 @@ for(int i=0; i<_tcpSocket.size(); i++)
   * MySql数据库用户名
   * MySql数据库密码
 * 图片HTTP服务器配置
-  
+
   * HTTP服务端地址
 * TCP设置
   * TCP服务端IP
   * TCP服务端端口
 
-   其中，MySql与HTTP配置储存在目录下的*config.json*文件中。json文件的读写吗，使用自己封装的*WriteJson*类和*ReadJson*类实现。为了保证安全性，json文件中的部分内容使用自己封装的**异或加密解密**（不能保证完全安全） *EncryptDecrypt*类加密解密。
+  其中，MySql与HTTP配置储存在目录下的*config.json*文件中。json文件的读写吗，使用自己封装的*WriteJson*类和*ReadJson*类实现。为了保证安全性，json文件中的部分内容使用自己封装的**
+  异或加密解密**（不能保证完全安全） *EncryptDecrypt*类加密解密。
 
 *config.json*文件内容如下：
 
 ```json
 {
-    "clearShot": 30,
-    "dbHost": "dbHost",
-    "dbName": "dbName",
-    "dbPasswd": "dbPasswd",
-    "dbPort": 3306,
-    "dbUser": "dbUser",
-    "picHost": "picHost",
-    "tcpHost": "127.0.0.1",
-    "tcpPort": 8081
+  "clearShot": 30,
+  "dbHost": "dbHost",
+  "dbName": "dbName",
+  "dbPasswd": "dbPasswd",
+  "dbPort": 3306,
+  "dbUser": "dbUser",
+  "picHost": "picHost",
+  "tcpHost": "127.0.0.1",
+  "tcpPort": 8081
 }
 ```
-
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ### 客户端
 
 客户端主要实现四个功能。菜单展示，购物车功能，发送订单信息和修改客户端配置。
 
 客户端主要涉及Tcp操作与MySql以及Http操作。客户端使用Tcp实时与服务端进行信息交换；使用远程MySql读取菜单数据；客户端使用http请求模拟来下载远程http服务器中的图片。
-
-
 
 #### 菜单展示
 
@@ -518,11 +563,11 @@ for(int i=1;i<=menuTypeCount;i++)
 
 ```
 
+这里应该注意一下菜品信息显示的时机，应该待全部菜品图片下载结束后才将菜品显示到*QListWidget*
+中。因而每当下载完图片后，都要发送一次图片下载完成消息`void signalAddAlreadyDownloadMenuCount()`。
 
-
-这里应该注意一下菜品信息显示的时机，应该待全部菜品图片下载结束后才将菜品显示到*QListWidget*中。因而每当下载完图片后，都要发送一次图片下载完成消息`void signalAddAlreadyDownloadMenuCount()`。
-
-在`void slotAddAlreadyDownloadMenuCout()`槽函数中，将已经下载的图片数`_alreadyDownloadMenuCount`累加，当`_alreadyDownloadMenuCount == _menuCount`即图片全部下载完成时，执行`insertItems()`，将菜品信息插入到*QListWidget*中显示出来。
+在`void slotAddAlreadyDownloadMenuCout()`槽函数中，将已经下载的图片数`_alreadyDownloadMenuCount`
+累加，当`_alreadyDownloadMenuCount == _menuCount`即图片全部下载完成时，执行`insertItems()`，将菜品信息插入到*QListWidget*中显示出来。
 
 ```cpp
 void ClientMainWindow::slotAddAlreadyDownloadMenuCount()
@@ -579,8 +624,6 @@ void ClientMainWindow::insertItems()
 
 ```
 
-
-
 当单击某项菜品后，应将菜品详细信息展示在*GroupBox*中。
 
 ```cpp
@@ -622,10 +665,6 @@ void ClientMainWindow::slotItemClicked(QListWidgetItem *item)  //选择一个菜
 }
 ```
 
-
-
-
-
 #### 购物车功能
 
 购物车功能首先在菜品展示页中放置一个重写的*MyButton*类动画图片按钮。当菜品添加到购物车时，播放一下购物车按钮的动画。
@@ -653,7 +692,8 @@ void ClientMainWindow::slotCartBtnClicked()
 
 ##### 购物车内菜品数量修改
 
-当双击编辑购物车数量后，调用`slotCartChanged(QTableWidgetItem *item)`槽函数进行处理。重新计算菜品总价和菜品总数并更新购物车界面显示信息，也要向*ClientMainWindow*发送购物车列表改变的消息。
+当双击编辑购物车数量后，调用`slotCartChanged(QTableWidgetItem *item)`槽函数进行处理。重新计算菜品总价和菜品总数并更新购物车界面显示信息，也要向*ClientMainWindow*
+发送购物车列表改变的消息。
 
 ```cpp
 void DialogCartView::slotCartChanged(QTableWidgetItem *item)
@@ -716,10 +756,6 @@ void ClientMainWindow::slotCartChanged(QList<CartItem>changedCart)
 }
 ```
 
-
-
-
-
 ##### 购物车清空功能
 
 单击清空购物车按钮，调用对应槽函数清空购物车信息，发送购物车清空消息。
@@ -768,10 +804,6 @@ void ClientMainWindow::slotCartCleaned()
     ui->statusbar->showMessage("购物车已清空",1500);
 }
 ```
-
-
-
-
 
 ##### 购物车结算功能
 
@@ -882,19 +914,11 @@ void ClientMainWindow::slotReadyCheckOut(QString note)  //结帐，发送socket�
 }
 ```
 
-
-
-
-
 #### 订单信息发送
 
 客户端启动后，将首先调用`TcpClient`类，使用`TcpClient::establishConnect(QString host, int port)`建立与服务端的socket连接。
 
 当用户下单时，将调用槽函数`slotReadyCheckOut(QString note)`向服务端发送订单socket信息，详细内容见上。
-
-
-
-
 
 #### 修改客户端配置
 
@@ -930,10 +954,6 @@ void ClientMainWindow::slotReadyCheckOut(QString note)  //结帐，发送socket�
 
 ____
 
-
-
-
-
 ## TODO LISTS
 
 ### 服务端
@@ -943,11 +963,9 @@ ____
 3. ~~菜单信息更新（包括增加、删除、修改）后，向客户端发送消息，要求客户端更新菜单数据。~~
 4. ~~新建一个menuType表，记录菜品种类和对应种类的菜品数。修改、增加菜单信息时更新该menuType表。~~
 5. ~~完善历史订单查看功能。（目前问题：第一次搜寻结果为空白时，初始化后才能进行下一次搜寻，否则结果为空）~~
-6. 
+6.
 7. 长远目标：菜品销售分析。
 8. 优化！优化！优化！
-
-
 
 ### 客户端
 
@@ -958,28 +976,11 @@ ____
 5. ~~接收服务端菜单更新信息，实时更新菜单。~~
 6. ~~状态栏实时菜单更新消息，购物车数目、总价和实时时间更新。~~
 7. ~~购物车列表添加代理控件~~
-8. 
+8.
 9. 优化！优化！优化！
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-​                                          																														*作者：skykey*
+​                                                                                                                                                                *
+作者：skykey*
 
 ------
 

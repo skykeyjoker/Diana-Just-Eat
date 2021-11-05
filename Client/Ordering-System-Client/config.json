@@ -1,11 +1,5 @@
 {
-	"dbHost":"`xjxvjy|xva=kji",
-	"dbName":"\\awva>@j`gv~",
-	"dbUser":"`xjxvj",
-	"dbPasswd":"`xjxvj!  ==",
-	"dbPort":3306,
-	"picHost":"{ggc)<<czp=`xjxvjy|xva=kji",
-	"tcpHost":"127.0.0.1",
-	"tcpPort":8081,
-	"tableNum":"A03"
+  "tcpHost": "127.0.0.1",
+  "tcpPort": 8081,
+  "tableNum": "A03"
 }

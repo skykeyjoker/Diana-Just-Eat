@@ -1,140 +1,152 @@
 #ifndef CLIENTMAINWINDOW_H
 #define CLIENTMAINWINDOW_H
 
-#include <QMainWindow>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QToolBox>
+#include <QDebug>
+#include <QDir>
+#include <QFile>
 #include <QGroupBox>
-#include <QTextBrowser>
+#include <QHBoxLayout>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QListWidgetItem>
-#include <QTableWidget>
-#include <QTableWidgetItem>
-#include <QTreeWidget>
-#include <QTreeWidgetItem>
-#include <QPushButton>
-#include <QLineEdit>
-#include <QPixmap>
+#include <QMainWindow>
 #include <QMessageBox>
-#include <QDebug>
-#include <QTimer>
-
-
+#include <QPixmap>
+#include <QPushButton>
 #include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QTableWidget>
+#include <QTableWidgetItem>
+#include <QTextBrowser>
+#include <QTimer>
+#include <QToolBox>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
+#include <QVBoxLayout>
 
-
-#include "tcpclient.h"
-#include "readjson.h"
-#include "dialogsettings.h"
+#include "Dish.h"
+#include "cartitem.h"
 #include "dialogcartview.h"
 #include "dialogcheckout.h"
+#include "dialogsettings.h"
 #include "httpfiledownload.h"
-#include "cartitem.h"
-#include "timestamp.h"
+#include "json.hpp"
 #include "mybutton.h"
+#include "readjson.h"
+#include "tcpclient.h"
+#include "timestamp.h"
 
 
+// TODO 删除UI文件
 QT_BEGIN_NAMESPACE
-namespace Ui { class ClientMainWindow; }
+namespace Ui {
+	class ClientMainWindow;
+}
 QT_END_NAMESPACE
 
-class ClientMainWindow : public QMainWindow
-{
-    Q_OBJECT
+class ClientMainWindow : public QMainWindow {
+	Q_OBJECT
 
-    bool connectDb();
+private:
+	// TODO 架构改变，客户端无需接触到数据库操作；维护一个菜单列表即可（内存占用可能较大，但效率较高）
+	void loadSetting();// 读取配置文件
 
-    //菜单显示
-    QListWidget *_menuList = new QListWidget;
+private:
+	//菜单显示
+	void loadMenu();
 
-    QStringList _menuTypeList;
-    QList<QString> _menuNameList;
-    QList<int> _menuTypeNumList;
-    QList<QString> _menuFileNameList;
+	void showMenu();
 
-    void loadMenu();
+	void insertItems();
 
-    void insertItems();
+	QListWidget *_menuList;
 
+	QList<Dish> _dishes;
 
+	QStringList _menuTypeList;
+	QHash<QString, int> _menuTypeNumHash;
+	QHash<QString, QString> _dishNameAndFileNameHash;
 
-    //菜品详细显示
-    QGroupBox *_viewGroupBox;
-    QLabel *lb_pic;
-    QLabel *lb_dishName;
-    QLabel *lb_dishNameContent;
-    QLabel *lb_dishPrice;
-    QLabel *lb_dishPriceContent;
-    QLabel *lb_dishInfo;
-    QTextBrowser *tb_dishInfo;
+	QList<QString> _menuNameList;
+	QList<int> _menuTypeNumList;
+	QList<QString> _menuFileNameList;
 
-    MyButton *btn_cart;
+private:
+	//菜品详细显示
+	QGroupBox *_viewGroupBox;
+	QLabel *lb_pic;
+	QLabel *lb_dishName;
+	QLabel *lb_dishNameContent;
+	QLabel *lb_dishPrice;
+	QLabel *lb_dishPriceContent;
+	QLabel *lb_dishInfo;
+	QTextBrowser *tb_dishInfo;
 
+	MyButton *btn_cart;
 
-    //TCP
-    TcpClient *client;
+private:
+	//TCP
+	TcpClient *client;
 
+	QString _tcpHost;
+	int _tcpPort;
+	int _tcpStatusPort;// 存活状态信道端口
 
-    //状态栏
-    QLabel *lb_cartNumCount;
-    QLabel *lb_cartPriceCount;
-    QLabel *lb_currentTime;
-    QTimer *timer;
+private:
+	//状态栏
+	QLabel *lb_cartNumCount;
+	QLabel *lb_cartPriceCount;
+	QLabel *lb_currentTime;
+	QTimer *timer;
+
+private:
+	// 购物车
+	QList<CartItem> cartLists;
+	int _cartNumCount = 0;
+	double _cartPriceCount = 0;
+
+private:
+	// 初始化界面
+	void initUI();
 
 public:
-    ClientMainWindow(QWidget *parent = nullptr);
-    ~ClientMainWindow();
+	explicit ClientMainWindow(QWidget *parent = nullptr);
+	~ClientMainWindow();
 
 public slots:
-    void on_actionSetting_triggered();
-    void slotUpdateMenu();
-    void slotItemClicked(QListWidgetItem *item);
-    void slotAddAlreadyDownloadMenuCount();
+	void on_actionSetting_triggered();
+	void slotUpdateMenu();
+	void slotQueryMenu(const QByteArray data);
+	void slotItemClicked(QListWidgetItem *item);
+	void slotAddAlreadyDownloadMenuCount();
 
-    void slotAddtoCart();
+	void slotAddtoCart();
 
-    void slotCartBtnClicked();
+	void slotCartBtnClicked();
 
-    void slotCartChanged(QList<CartItem>cartlist);
-    void slotCartCleaned();
+	void slotCartChanged(QList<CartItem> cartlist);
+	void slotCartCleaned();
 
-    void slotCartCheckOut();
+	void slotCartCheckOut();
 
-    void slotReadyCheckOut(QString note);
+	void slotReadyCheckOut(QString note);
 
 signals:
-    void signalAddAlreadyDownloadMenuCount();
+	void signalAddAlreadyDownloadMenuCount();
+
 private:
-    Ui::ClientMainWindow *ui;
+	Ui::ClientMainWindow *ui;
 
-    //Database
-    QSqlDatabase db=QSqlDatabase::addDatabase("QMYSQL");
-    QString _dbHost;
-    QString _dbName;
-    QString _dbUser;
-    QString _dbPasswd;
-    int _dbPort;
+	//图片服务器
+	QString _picHost;
 
-    //Tcp
-    QString _tcpHost;
-    int _tcpPort;
+	//Menu
+	int _menuCount;
+	int _alreadyDownloadMenuCount;
 
-    //图片服务器
-    QString _picHost;
-
-    //Menu
-    int _menuCount;
-    int _alreadyDownloadMenuCount;
-
-    QDir _picPath;
-    QString _tableNum;
-
-    QList<CartItem> cartLists;
-    int _cartNumCount=0;
-    double _cartPriceCount=0;
+	QDir _picPath;
+	QString _tableNum;
 };
-#endif // CLIENTMAINWINDOW_H
+#endif// CLIENTMAINWINDOW_H

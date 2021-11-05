@@ -1,43 +1,89 @@
 #include "tcpclient.h"
 
-TcpClient::TcpClient(QObject *parent):QObject(parent)
-{
-    connect(_socket,&QTcpSocket::readyRead,this,&TcpClient::slotReadyRead);
+TcpClient::TcpClient(QObject *parent) : QObject(parent) {
+	_socket = new QTcpSocket;
+	_statusSocket = new QTcpSocket;
+	connect(_socket, &QTcpSocket::readyRead, this, &TcpClient::slotReadyRead);
+	connect(_statusSocket, &QTcpSocket::readyRead, this, &TcpClient::slotStatusReadyRead);
+
+	// 断连
+	connect(_socket, &QTcpSocket::disconnected, this, &TcpClient::signalDisconnectedToServer);
+	connect(_statusSocket, &QTcpSocket::disconnected, this, &TcpClient::signalDisconnectedToServer);
 }
 
-void TcpClient::establishConnect(QString host, int port)
-{
-    //连接到tcp服务器
-    _socket->connectToHost(host,port);
+void TcpClient::establishConnect(const QString &host, int port, int statusPort) {
+	//连接到tcp服务器
+	_socket->connectToHost(host, port);
+	_statusSocket->connectToHost(host, statusPort);
 
-    //发送信号
-    emit signalEstablishConnect();
+	//发送信号
+	emit signalEstablishConnect();
 }
 
-void TcpClient::slotReadyRead()
-{
-    QByteArray data;
-    data = _socket->readAll();
+void TcpClient::slotStatusReadyRead() {
+	// 收到服务端发来的客户端状态查询
+	QByteArray data;
+	data = _statusSocket->readAll();
 
-    QString dataStr = QString::fromUtf8(data);
+	// 判断是否为状态查询
+	// 立即返回存活确认
 
-    if(dataStr=="[Menu Updated]")
-    {
-        //发送更新菜单信号
-        emit signalUpdateMenu();
-        qDebug()<<"客户端已收到菜单更新信号";
-    }
+	// 服务端发送后，waitForReadAvailable，阻塞等待活跃查询
 }
 
-bool TcpClient::sendData(const QByteArray data)
-{
-    bool ret = _socket->write(data);
+void TcpClient::slotReadyRead() {
+	QByteArray data;
+	data = _socket->readAll();
 
-    if(!ret)
-    {
-        qDebug()<<"发送消息失败";
-        return false;
-    }
+	QString dataStr = QString::fromUtf8(data);
+	Json json = Json::parse(dataStr.toUtf8(), nullptr, false);
+	int code = json["code"].get<int>();
 
-    return true;
+	switch (code) {
+		case 0: {
+			// 菜单请求返回处理
+			emit signalQueryMenu(dataStr.toUtf8());
+			break;
+		}
+		case 1: {
+			// 菜单更新消息
+			break;
+		}
+		default:
+			break;
+	}
+
+	if (dataStr == "[Menu Updated]") {
+		//发送更新菜单信号
+		emit signalUpdateMenu();
+		qDebug() << "客户端已收到菜单更新信号";
+	}
+}
+
+bool TcpClient::sendData(const int signal, const QByteArray &data) {
+	// 双信道发送
+	bool ret = _socket->write(data);
+	_socket->waitForBytesWritten();
+
+	if (!ret) {
+		qDebug() << "发送消息失败";
+		return false;
+	}
+
+	return true;
+}
+
+void TcpClient::queryMenu() {
+	// TODO 向服务端发出消息请求（菜单订单信道），并将菜单消息返回
+	QString tstr = "{\"code\":0}";
+	sendData(0, tstr.toUtf8());
+}
+
+bool TcpClient::sendNewOrder(const QByteArray &data) {
+	// 信道0（菜单订单信道发送菜单消息）
+	return sendData(0, data);
+}
+
+void TcpClient::replyStatusCheck() {
+	// TODO 返回服务端的请求状态查询
 }
