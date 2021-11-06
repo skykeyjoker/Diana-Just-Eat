@@ -47,7 +47,7 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 
 
 	/* 初始化界面 */
-	// TODO 界面初始化统一放在函数内
+	// 界面初始化统一放在函数内
 	initUI();
 
 	/* 加载菜单 */
@@ -60,8 +60,8 @@ ClientMainWindow::~ClientMainWindow() {
 }
 
 void ClientMainWindow::loadSetting() {
-	// TODO 读取配置文件，获取服务器消息，并从服务器处请求菜单信息
-	// TODO JSON读取改变，不再需要封装，直接利用第三方JSON库进行读取
+	// 读取配置文件，获取服务器消息，并从服务器处请求菜单信息
+	// JSON读取改变，不再需要封装，直接利用第三方JSON库进行读取
 	using Json = nlohmann::json;
 	QFile file("config.json");
 	if (file.open(QFile::ReadOnly)) {
@@ -169,7 +169,7 @@ void ClientMainWindow::showMenu() {
 			if (_dishes[j].getType() == _menuTypeList[i]) {
 				QListWidgetItem *currentChildItem = new QListWidgetItem;
 				currentChildItem->setToolTip(_dishes[j].getName());
-				// TODO 图片预留
+				// 图片预留
 				qDebug() << _picPath.path() + "/" + _dishes[j].getPhoto();
 				currentChildItem->setIcon(QIcon());
 				//currentChildItem->setIcon(QIcon(_picPath.path() + "/" + _dishes[j].getPhoto()));
@@ -191,10 +191,9 @@ void ClientMainWindow::showMenu() {
 		}
 	}
 
-	// TODO 使用线程池下载图片
+	// 使用线程池下载图片
 	QThreadPool threadPool;
 	threadPool.setMaxThreadCount(4);
-	// TODO 重写下载worker，继承自QRunnable
 	for (int i = 0; i < _dishes.size(); i++) {
 		// 判断图片是否需要下载
 		if (!_picPath.exists(_dishes[i].getPhoto())) {
@@ -205,7 +204,7 @@ void ClientMainWindow::showMenu() {
 	}
 	threadPool.waitForDone();
 
-	// TODO 图片下载完成后将图片插入
+	// 图片下载完成后将图片插入
 	for (int i = 0; i < _menuList->count(); i++) {
 		if (!_menuTypeList.contains(_menuList->item(i)->toolTip()))// 子类
 		{
@@ -217,7 +216,7 @@ void ClientMainWindow::showMenu() {
 }
 
 void ClientMainWindow::initUI() {
-	// TODO 初始化界面
+	// 初始化界面
 	QHBoxLayout *mainLay = new QHBoxLayout(ui->centralwidget);
 
 	_viewGroupBox = new QGroupBox("菜品信息");
@@ -658,7 +657,7 @@ void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信
 }
 
 void ClientMainWindow::slotDisconnectedToServer() {
-	// TODO 处理断连信号
+	// 处理断连信号
 	QMessageBox::critical(this, "连接失败", "与服务器链接断开，请检查网络设置并重启服务器！");
 	exit(1);
 }

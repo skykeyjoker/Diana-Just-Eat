@@ -30,7 +30,9 @@ private:
 private:
 	// TODO 初始化放在构造函数内
 	// 两条信道
-	QTcpSocket *_socket;      // 菜单订单信道
+	QTcpSocket *_socket;// 菜单订单信道
+
+	// TODO 客户端状态信道
 	QTcpSocket *_statusSocket;// 客户端状态信道
 
 public slots:
