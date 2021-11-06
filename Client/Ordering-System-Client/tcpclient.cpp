@@ -47,16 +47,11 @@ void TcpClient::slotReadyRead() {
 		}
 		case 1: {
 			// 菜单更新消息
+			emit signalUpdateMenu(dataStr.toUtf8());
 			break;
 		}
 		default:
 			break;
-	}
-
-	if (dataStr == "[Menu Updated]") {
-		//发送更新菜单信号
-		emit signalUpdateMenu();
-		qDebug() << "客户端已收到菜单更新信号";
 	}
 }
 

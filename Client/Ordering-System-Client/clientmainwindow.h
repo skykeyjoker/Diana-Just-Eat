@@ -60,8 +60,6 @@ private:
 
 	void showMenu();
 
-	void insertItems();
-
 	QListWidget *_menuList;
 
 	QList<Dish> _dishes;
@@ -69,10 +67,6 @@ private:
 	QStringList _menuTypeList;
 	QHash<QString, int> _menuTypeNumHash;
 	QHash<QString, QString> _dishNameAndFileNameHash;
-
-	QList<QString> _menuNameList;
-	QList<int> _menuTypeNumList;
-	QList<QString> _menuFileNameList;
 
 private:
 	//菜品详细显示
@@ -118,10 +112,9 @@ public:
 
 public slots:
 	void on_actionSetting_triggered();
-	void slotUpdateMenu();
+	void slotUpdateMenu(const QByteArray data);
 	void slotQueryMenu(const QByteArray data);
 	void slotItemClicked(QListWidgetItem *item);
-	void slotAddAlreadyDownloadMenuCount();
 
 	void slotAddtoCart();
 
@@ -134,8 +127,8 @@ public slots:
 
 	void slotReadyCheckOut(QString note);
 
-signals:
-	void signalAddAlreadyDownloadMenuCount();
+	void slotDisconnectedToServer();
+
 
 private:
 	Ui::ClientMainWindow *ui;

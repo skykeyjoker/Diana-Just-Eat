@@ -11,8 +11,6 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 
 	ui->setupUi(this);
 
-	connect(this, &ClientMainWindow::signalAddAlreadyDownloadMenuCount, this, &ClientMainWindow::slotAddAlreadyDownloadMenuCount);
-
 	//连接数据库，读取配置文件
 	// TODO 改进配置初始化
 	//connectDb();
@@ -28,9 +26,13 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 
 	void (TcpClient::*pSignalQueryMenu)(const QByteArray) = &TcpClient::signalQueryMenu;
 	void (ClientMainWindow::*pSlotQueryMenu)(const QByteArray) = &ClientMainWindow::slotQueryMenu;
-	connect(client, pSignalQueryMenu, this, pSlotQueryMenu);                               // 菜单请求返回
-	connect(client, &TcpClient::signalUpdateMenu, this, &ClientMainWindow::slotUpdateMenu);// TODO 菜单更新信号，改进
-	// TODO 断连信号
+	connect(client, pSignalQueryMenu, this, pSlotQueryMenu);// 菜单请求返回
+
+	void (TcpClient::*pSignalUpdateMenu)(const QByteArray) = &TcpClient::signalUpdateMenu;
+	void (ClientMainWindow::*pSlotUpdateMenu)(const QByteArray) = &ClientMainWindow::slotUpdateMenu;
+	connect(client, pSignalUpdateMenu, this, pSlotUpdateMenu);// 菜单更新
+
+	connect(client, &TcpClient::signalDisconnectedToServer, this, &ClientMainWindow::slotDisconnectedToServer);// 断连
 
 	//获取程序图片缓存目录
 	if (!QDir::current().exists("Pic")) {
@@ -146,7 +148,7 @@ void ClientMainWindow::slotQueryMenu(const QByteArray data) {
 }
 
 void ClientMainWindow::showMenu() {
-	if (_menuList->count()) {
+	if (_menuList->count()) {// 清空菜单List控件
 		_menuList->clear();
 	}
 
@@ -194,9 +196,12 @@ void ClientMainWindow::showMenu() {
 	threadPool.setMaxThreadCount(4);
 	// TODO 重写下载worker，继承自QRunnable
 	for (int i = 0; i < _dishes.size(); i++) {
-		QString currentPhotoUrl = "http://" + _tcpHost + "/" + _dishes[i].getPhoto();
-		QString currentPhotoName = _picPath.path() + "/" + _dishes[i].getPhoto();
-		threadPool.start(new HttpFileDownload(currentPhotoUrl, currentPhotoName));
+		// 判断图片是否需要下载
+		if (!_picPath.exists(_dishes[i].getPhoto())) {
+			QString currentPhotoUrl = "http://" + _tcpHost + "/" + _dishes[i].getPhoto();
+			QString currentPhotoName = _picPath.path() + "/" + _dishes[i].getPhoto();
+			threadPool.start(new HttpFileDownload(currentPhotoUrl, currentPhotoName));
+		}
 	}
 	threadPool.waitForDone();
 
@@ -309,125 +314,110 @@ void ClientMainWindow::on_actionSetting_triggered() {
 	//dlg.exec();
 }
 
-//void ClientMainWindow::loadMenu()//加载菜品
-//{
-//	qDebug() << "Load menu...";
-//
-//	ui->statusbar->showMessage("正在更新菜单信息，请稍等...");//更新一下状态栏消息
-//
-//	/* 清除之前的数据 */
-//	if (_menuList->count())//菜单列表
-//	{
-//		_menuList->clear();
-//	}
-//
-//	if (!_menuTypeList.isEmpty())//菜品种类列表
-//	{
-//		_menuTypeList.clear();
-//	}
-//
-//	if (!_menuNameList.isEmpty())//菜品名列表
-//	{
-//		_menuNameList.clear();
-//	}
-//
-//	if (!_menuTypeNumList.isEmpty())//菜品种类名列表
-//	{
-//		_menuTypeNumList.clear();
-//	}
-//
-//	if (!_menuFileNameList.isEmpty())//菜品图片文件名列表
-//	{
-//		_menuFileNameList.clear();
-//	}
-//
-//	//TODO 购物车不清空就能更新信息
-//	if (!cartLists.isEmpty())//购物车也要清空一下，防止提交旧的菜品信息
-//	{
-//		cartLists.clear();
-//
-//		_cartNumCount = 0;
-//		_cartPriceCount = 0;
-//	}
-//
-//	_alreadyDownloadMenuCount = 0;
-//	_menuCount = 0;
-//
-//	// TODO 架构改变，客户端不再需要进行数据库操作
-//	//先遍历menuType表，记录菜品分类
-//	QSqlQuery query(db);
-//	qDebug() << query.exec("SELECT * FROM menuType WHERE 1");
-//	int menuTypeCount = query.size();//菜品种类总共数量
-//
-//	qDebug() << "更新：" << menuTypeCount;
-//	query.next();//必须执行一下.next()让他指向第一条记录，否则记录会指向第一条记录之前的记录
-//
-//	for (int i = 1; i <= menuTypeCount; i++) {
-//		_menuCount += query.value(2).toInt();//_menuCount记录着一共多少菜品（是总菜品数！而不是总菜品种类数！）
-//
-//		query.next();
-//	}
-//
-//	query.first();//重新指向第一条记录
-//
-//	for (int i = 1; i <= menuTypeCount; i++) {
-//		//添加一种菜品种类
-//		QString menuTypeName = query.value(1).toString();
-//		qDebug() << menuTypeName;
-//		int menuTypeNum = query.value(2).toInt();
-//		_menuTypeList.append(menuTypeName);
-//		_menuTypeNumList.append(menuTypeNum);
-//
-//		_menuList->setIconSize(QSize(150, 150));
-//
-//
-//		QSqlQuery dishQuery(db);
-//		qDebug() << dishQuery.exec(tr("SELECT * FROM menu WHERE Type='%1'").arg(menuTypeName));
-//		qDebug() << dishQuery.lastError().text();
-//		qDebug() << dishQuery.size();
-//		dishQuery.next();
-//
-//
-//		for (int j = 1; j <= menuTypeNum; j++) {
-//			//添加一个菜品
-//			QString currenFileName = dishQuery.value(1).toString() + dishQuery.value(5).toString().mid(dishQuery.value(5).toString().lastIndexOf("."), -1);
-//			QString currentDishName = dishQuery.value(1).toString();
-//			double currentDishPrice = dishQuery.value(4).toDouble();
-//			QString currentDishInfo = dishQuery.value(3).toString();
-//
-//			QString currentList = tr("%1\t%2 RMB\n\n%3").arg(currentDishName).arg(QString::number(currentDishPrice)).arg(currentDishInfo);
-//			_menuNameList.append(currentList);
-//			_menuFileNameList.append(currenFileName);
-//
-//			QString url = dishQuery.value(5).toString();
-//			qDebug() << "currenFileName:" << currenFileName;
-//
-//
-//			//删除缓存并下载
-//			if (_picPath.exists(currenFileName))//先删除缓存
-//			{
-//				_picPath.remove(currenFileName);
-//			}
-//
-//			HttpFileDownload *picDownload = new HttpFileDownload(url, currenFileName);
-//
-//			connect(picDownload, &HttpFileDownload::signalDownloadFinished, [=]() {
-//				qDebug() << "download finished...";
-//
-//				emit signalAddAlreadyDownloadMenuCount();//下载完一张图片，就发送一个下载完成消息
-//			});
-//
-//			dishQuery.next();
-//		}
-//
-//
-//		query.next();
-//	}
-//}
+void ClientMainWindow::slotUpdateMenu(const QByteArray data) {
+	qDebug() << "收到菜单更新信息";
+	QString dataStr = QString::fromUtf8(data);
+	qDebug() << dataStr;
 
-void ClientMainWindow::slotUpdateMenu() {
-	// TODO 重新定义菜单更新槽函数
-	//loadMenu();
+	Json menuJson = Json::parse(data, nullptr, false);
+
+	auto menuTypeArr = menuJson["menuType"];
+	for (int i = 0; i < menuTypeArr.size(); ++i) {
+		int opt = menuTypeArr[i]["Opt"].get<int>();
+		qDebug() << opt;
+		QString currentMenuTypeName = QString::fromStdString(menuTypeArr[i]["Name"].get<std::string>());
+		switch (opt) {
+			case 0: {
+				// 添加新菜品种类
+				qDebug() << "Add Menu Type:" << currentMenuTypeName;
+				_menuTypeList.push_back(currentMenuTypeName);
+				_menuTypeNumHash[currentMenuTypeName] = 0;
+				break;
+			}
+			case 1: {
+				// 更新菜品种类信息
+				qDebug() << "Update Menu Type:" << currentMenuTypeName;
+				int currentMenuTypeNum = menuTypeArr[i]["Num"].get<int>();
+				_menuTypeNumHash[currentMenuTypeName] = currentMenuTypeNum;
+				break;
+			}
+			case 2: {
+				// 删除菜品种类
+				qDebug() << "Remove Menu Type:" << currentMenuTypeName;
+				_menuTypeList.removeAll(currentMenuTypeName);
+				_menuTypeNumHash.remove(currentMenuTypeName);
+				break;
+			}
+			default:
+				break;
+		}
+	}
+
+	auto menuArr = menuJson["menu"];
+	for (int i = 0; i < menuArr.size(); ++i) {
+		int opt = menuArr[i]["Opt"].get<int>();
+		qDebug() << opt;
+		QString currentDishName = QString::fromStdString(menuArr[i]["Name"].get<std::string>());
+		switch (opt) {
+			case 0: {
+				// 添加一道新菜品
+				QString currentDishType = QString::fromStdString(menuArr[i]["Type"].get<std::string>());
+				QString currentDishInfo = QString::fromStdString(menuArr[i]["Info"].get<std::string>());
+				double currentDishPrice = menuArr[i]["Price"].get<double>();
+				QString currentDishPhoto = QString::fromStdString(menuArr[i]["Photo"].get<std::string>());
+				qDebug() << "Add Dish:" << currentDishName << currentDishType << currentDishInfo << currentDishPrice << currentDishPhoto;
+				Dish currentDish(currentDishName, currentDishType, currentDishInfo, currentDishPrice, currentDishPhoto);
+				_dishNameAndFileNameHash[currentDishName] = currentDishPhoto;
+				_dishes.push_back(currentDish);
+				break;
+			}
+			case 1: {
+				// 更新菜品信息
+				QString currentDishType = QString::fromStdString(menuArr[i]["Type"].get<std::string>());
+				QString currentDishInfo = QString::fromStdString(menuArr[i]["Info"].get<std::string>());
+				double currentDishPrice = menuArr[i]["Price"].get<double>();
+				QString currentDishPhoto = QString::fromStdString(menuArr[i]["Photo"].get<std::string>());
+				qDebug() << "Update Dish:" << currentDishName << currentDishType << currentDishInfo << currentDishPrice << currentDishPhoto;
+				Dish currentDish(currentDishName, currentDishType, currentDishInfo, currentDishPrice, currentDishPhoto);
+				for (int j = 0; j < _dishes.size(); ++j)// 删除旧的菜品信息
+					if (_dishes[j].getName() == currentDishName)
+						_dishes.removeAt(j);
+				_dishNameAndFileNameHash[currentDishName] = currentDishPhoto;
+				_dishes.push_back(currentDish);
+
+				// 判断图片是否需要重新下载
+				bool isPhotoNeedUpdated = menuArr[i]["PhotoUpdated"].get<bool>();
+				if (isPhotoNeedUpdated) {
+					// 删除旧的图片
+					_picPath.remove(currentDishPhoto);
+				}
+
+				break;
+			}
+			case 2: {
+				// 删除菜品
+				qDebug() << "Remove Dish" << currentDishName;
+				for (int j = 0; j < _dishes.size(); ++j)// 删除菜品信息
+					if (_dishes[j].getName() == currentDishName)
+						_dishes.removeAt(j);
+				_dishNameAndFileNameHash.remove(currentDishName);
+				break;
+			}
+			default:
+				break;
+		}
+	}
+
+	// 显示菜单
+	showMenu();
+
+	statusBar()->showMessage("菜单更新成功！", 2000);
+
+	// TODO 菜单信息更新后更新购物车信息
+	// 最简单的方式，以下三个都清空一下
+	// QList<CartItem> cartLists;
+	// int _cartNumCount = 0;
+	// double _cartPriceCount = 0;
 }
 
 void ClientMainWindow::slotItemClicked(QListWidgetItem *item)//选择一个菜品，展示菜品详细信息
@@ -455,7 +445,7 @@ void ClientMainWindow::slotItemClicked(QListWidgetItem *item)//选择一个菜�
 	qDebug() << dishPrice;
 	qDebug() << dishInfo;
 	qDebug() << dishPhotoFileName;
-	qDebug() << _menuNameList;
+	//qDebug() << _menuNameList;
 
 	//展示菜品信息
 	//lb_pic->setPixmap(QPixmap(dishPhotoFileName));
@@ -465,49 +455,6 @@ void ClientMainWindow::slotItemClicked(QListWidgetItem *item)//选择一个菜�
 	tb_dishInfo->setText(dishInfo);
 }
 
-void ClientMainWindow::slotAddAlreadyDownloadMenuCount() {
-	_alreadyDownloadMenuCount++;//已经下载的图片数+1
-
-	qDebug() << "alreadyDownloadMenuTypeCount:" << _alreadyDownloadMenuCount;
-
-
-	if (_alreadyDownloadMenuCount == _menuCount)//如果图片全部下载完成
-	{
-		insertItems();//菜品图片全部下载完成后，准备开始添加菜品信息到listwidget中
-	}
-}
-
-void ClientMainWindow::insertItems() {
-	int currentDishCount = 0;
-
-	qDebug() << "_menuList->count" << _menuList->count();
-	qDebug() << "_menuTypeList.size" << _menuTypeList.size();
-	qDebug() << "_menuTypeNumList.size" << _menuTypeNumList.size();
-	qDebug() << "_menuNameList.size" << _menuNameList.size();
-	qDebug() << "_menuFileNameList.size" << _menuFileNameList.size();
-
-
-	for (int i = 0; i < _menuTypeList.size(); i++)//按菜的种类来
-	{
-		//先插入菜种类头
-		QListWidgetItem *currentParentItem = new QListWidgetItem;
-		currentParentItem->setText(tr("%1\t共%2种菜品").arg(_menuTypeList.at(i)).arg(QString::number(_menuTypeNumList.at(i))));
-		_menuList->addItem(currentParentItem);
-
-		//再插入子类
-		for (int j = 0; j < _menuTypeNumList.at(i); j++) {
-			QListWidgetItem *currentChildItem = new QListWidgetItem;
-			currentChildItem->setIcon(QIcon(_picPath.path() + "/" + _menuFileNameList.at(currentDishCount)));
-			currentChildItem->setText(_menuNameList.at(currentDishCount));
-
-			_menuList->addItem(currentChildItem);
-
-			currentDishCount++;
-		}
-	}
-
-	ui->statusbar->showMessage("菜单更新成功！", 2000);//状态栏更新一下消息
-}
 
 void ClientMainWindow::slotAddtoCart() {
 	if (_menuList->currentIndex().row() == -1) {
@@ -621,7 +568,7 @@ void ClientMainWindow::slotCartCheckOut() {
 void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信息
 {
 	qDebug() << "slotReadyCheckOut";
-
+	// TODO 订单消息结构改变，采用JSON格式
 	/*
     A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
 */
@@ -672,4 +619,10 @@ void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信
 	} else {
 		QMessageBox::critical(this, "下单失败", "未能成功下单！请检查客户端设置并重新下单。");
 	}
+}
+
+void ClientMainWindow::slotDisconnectedToServer() {
+	// TODO 处理断连信号
+	QMessageBox::critical(this, "连接失败", "与服务器链接断开，请检查网络设置并重启服务器！");
+	exit(1);
 }

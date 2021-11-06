@@ -42,7 +42,7 @@ signals:
 
 	void signalQueryMenu(const QByteArray data);
 
-	void signalUpdateMenu();
+	void signalUpdateMenu(const QByteArray data);
 
 	void signalDisconnectedToServer();
 };
