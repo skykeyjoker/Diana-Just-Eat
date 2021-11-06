@@ -319,6 +319,8 @@ void ClientMainWindow::slotUpdateMenu(const QByteArray data) {
 	QString dataStr = QString::fromUtf8(data);
 	qDebug() << dataStr;
 
+	bool cartUpdate = false;
+
 	Json menuJson = Json::parse(data, nullptr, false);
 
 	auto menuTypeArr = menuJson["menuType"];
@@ -392,6 +394,15 @@ void ClientMainWindow::slotUpdateMenu(const QByteArray data) {
 					_picPath.remove(currentDishPhoto);
 				}
 
+				// 购物车信息调整
+				if (_cartSet.contains(currentDishName)) {
+					cartUpdate = true;
+					for (auto &cartItem : _cartLists) {
+						if (cartItem.getItemName() == currentDishName) {
+							cartItem.setItemPrice(currentDishPrice);
+						}
+					}
+				}
 				break;
 			}
 			case 2: {
@@ -401,6 +412,17 @@ void ClientMainWindow::slotUpdateMenu(const QByteArray data) {
 					if (_dishes[j].getName() == currentDishName)
 						_dishes.removeAt(j);
 				_dishNameAndFileNameHash.remove(currentDishName);
+
+				// 购物车信息调整
+				if (_cartSet.contains(currentDishName)) {
+					cartUpdate = true;
+					for (int j = 0; j < _cartLists.size(); ++j) {
+						if (_cartLists[j].getItemName() == currentDishName) {
+							_cartLists.removeAt(j);
+						}
+					}
+					_cartSet.remove(currentDishName);
+				}
 				break;
 			}
 			default:
@@ -413,11 +435,21 @@ void ClientMainWindow::slotUpdateMenu(const QByteArray data) {
 
 	statusBar()->showMessage("菜单更新成功！", 2000);
 
-	// TODO 菜单信息更新后更新购物车信息
-	// 最简单的方式，以下三个都清空一下
-	// QList<CartItem> cartLists;
-	// int _cartNumCount = 0;
-	// double _cartPriceCount = 0;
+	// 菜单信息更新后更新购物车信息
+	if (cartUpdate) {
+		// 更新状态栏信息
+		_cartNumCount = 0;
+		_cartPriceCount = 0;
+
+		for (int i = 0; i < _cartLists.size(); i++) {
+			_cartNumCount += _cartLists.at(i).getNum();
+			_cartPriceCount += _cartLists.at(i).getSum();
+		}
+
+		lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
+		lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
+		QMessageBox::information(this, "菜单更新", "菜单更新，购物车内商品已同步更新！");
+	}
 }
 
 void ClientMainWindow::slotItemClicked(QListWidgetItem *item)//选择一个菜品，展示菜品详细信息
@@ -472,32 +504,34 @@ void ClientMainWindow::slotAddtoCart() {
 	qDebug() << currentItemName;
 	qDebug() << currentItemPrice;
 
-	//状态栏显示一个添加菜品的临时消息
+	// 状态栏显示一个添加菜品的临时消息
 	ui->statusbar->showMessage(tr("添加1份%1到购物车").arg(currentItemName), 1500);
 
-	//先判断购物车是否已经添加该菜品
-	for (int i = 0; i < cartLists.size(); i++) {
-		if (cartLists.at(i).getItemName() == currentItemName) {
-			_cartNumCount++;
-			const_cast<CartItem &>(cartLists.at(i)).addItem();//调用必须显式转换
-			_cartPriceCount += currentItemPrice.toDouble();
+	// 先判断购物车是否已经添加该菜品
+	if (_cartSet.contains(currentItemName)) {
+		_cartNumCount++;
+		for (int i = 0; i < _cartLists.size(); i++) {
+			if (_cartLists.at(i).getItemName() == currentItemName) {
+				const_cast<CartItem &>(_cartLists.at(i)).addItem();//调用必须显式转换
+				_cartPriceCount += currentItemPrice.toDouble();
 
-			lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
-			lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
+				lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
+				lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
 
-			return;
+				return;
+			}
 		}
 	}
 
-
-	//创建一个临时的CartItem对象
+	// 创建一个临时的CartItem对象
 	CartItem currentItem(currentItemName, currentItemPrice.toDouble());
 	currentItem.addItem();//加一个值
 
-	//添加到list
-	cartLists.append(currentItem);
+	// 添加到list
+	_cartLists.append(currentItem);
+	_cartSet.insert(currentItemName);
 
-	//更新状态栏信息
+	// 更新状态栏信息
 	_cartNumCount++;
 	_cartPriceCount += currentItem.getSum();
 
@@ -506,12 +540,12 @@ void ClientMainWindow::slotAddtoCart() {
 }
 
 void ClientMainWindow::slotCartBtnClicked() {
-	btn_cart->showAddAnimation();//先放个动画
+	btn_cart->showAddAnimation();// 先放个动画
 
-	DialogCartView *dlg = new DialogCartView(cartLists);
+	DialogCartView *dlg = new DialogCartView(_cartLists);
 	dlg->show();
 
-	//连接购物车查看界面的信号
+	// 连接购物车查看界面的信号
 	void (DialogCartView::*pSignalCartChanged)(QList<CartItem>) = &DialogCartView::signalCartChanged;
 	void (ClientMainWindow::*pSlotCartChanged)(QList<CartItem>) = &ClientMainWindow::slotCartChanged;
 	connect(dlg, pSignalCartChanged, this, pSlotCartChanged);
@@ -522,17 +556,17 @@ void ClientMainWindow::slotCartBtnClicked() {
 void ClientMainWindow::slotCartChanged(QList<CartItem> changedCart) {
 	qDebug() << "slotCartChanged";
 
-	//更新cartLists内容
-	cartLists.clear();
-	cartLists = changedCart;
+	// 更新cartLists内容
+	_cartLists.clear();
+	_cartLists = changedCart;
 
-	//更新状态栏信息
+	// 更新状态栏信息
 	_cartNumCount = 0;
 	_cartPriceCount = 0;
 
-	for (int i = 0; i < cartLists.size(); i++) {
-		_cartNumCount += cartLists.at(i).getNum();
-		_cartPriceCount += cartLists.at(i).getSum();
+	for (int i = 0; i < _cartLists.size(); i++) {
+		_cartNumCount += _cartLists.at(i).getNum();
+		_cartPriceCount += _cartLists.at(i).getSum();
 	}
 
 	lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
@@ -541,10 +575,11 @@ void ClientMainWindow::slotCartChanged(QList<CartItem> changedCart) {
 
 void ClientMainWindow::slotCartCleaned() {
 	qDebug() << "slotCartCleaned()";
-	//更新cartLists内容
-	cartLists.clear();
+	// 更新cartLists和cartSet内容
+	_cartLists.clear();
+	_cartSet.clear();
 
-	//更新状态栏信息
+	// 更新状态栏信息
 	_cartNumCount = 0;
 	_cartPriceCount = 0;
 
@@ -552,12 +587,12 @@ void ClientMainWindow::slotCartCleaned() {
 	lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
 	lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
 
-	//状态栏显示提醒消息
+	// 状态栏显示提醒消息
 	ui->statusbar->showMessage("购物车已清空", 1500);
 }
 
 void ClientMainWindow::slotCartCheckOut() {
-	DialogCheckOut *dlg = new DialogCheckOut(cartLists, _cartNumCount, _cartPriceCount);
+	DialogCheckOut *dlg = new DialogCheckOut(_cartLists, _cartNumCount, _cartPriceCount);
 	dlg->show();
 
 	void (DialogCheckOut::*pSignalReadyCheckOut)(QString) = &DialogCheckOut::signalReadyCheckOut;
@@ -577,12 +612,12 @@ void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信
 	dataList << QString::number(_cartPriceCount) << ";";
 
 	QString cartContent;//讲购物车菜品信息格式化合并并存入到datalist
-	for (int i = 0; i < cartLists.size(); i++) {
+	for (int i = 0; i < _cartLists.size(); i++) {
 		QString currentCartItem;
-		if (i != cartLists.size() - 1)
-			currentCartItem = "[" + cartLists.at(i).getItemName() + ":" + QString::number(cartLists.at(i).getNum()) + "],";
+		if (i != _cartLists.size() - 1)
+			currentCartItem = "[" + _cartLists.at(i).getItemName() + ":" + QString::number(_cartLists.at(i).getNum()) + "],";
 		else
-			currentCartItem = "[" + cartLists.at(i).getItemName() + ":" + QString::number(cartLists.at(i).getNum()) + "]";
+			currentCartItem = "[" + _cartLists.at(i).getItemName() + ":" + QString::number(_cartLists.at(i).getNum()) + "]";
 		qDebug() << currentCartItem;
 		cartContent += currentCartItem;
 		qDebug() << cartContent;
@@ -603,7 +638,8 @@ void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信
 	if (ret) {
 		QMessageBox::information(this, "下单成功", "已成功下单！");
 		//清空购物车
-		cartLists.clear();
+		_cartLists.clear();
+		_cartSet.clear();
 
 		//更新状态栏信息
 		_cartNumCount = 0;

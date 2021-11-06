@@ -98,7 +98,8 @@ private:
 
 private:
 	// 购物车
-	QList<CartItem> cartLists;
+	QList<CartItem> _cartLists;
+	QSet<QString> _cartSet;
 	int _cartNumCount = 0;
 	double _cartPriceCount = 0;
 
