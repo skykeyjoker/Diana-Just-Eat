@@ -1,6 +1,13 @@
 #include "tcpclient.h"
 
-TcpClient::TcpClient(QObject *parent) : QObject(parent) {
+TcpClient::TcpClient(const QString &host, int port, int statusPort, QObject *parent)
+	: _host(host),
+	  _port(port),
+	  _statusPort(statusPort),
+	  QObject(parent) {
+}
+
+void TcpClient::establishConnect() {
 	_socket = new QTcpSocket;
 	_statusSocket = new QTcpSocket;
 	connect(_socket, &QTcpSocket::readyRead, this, &TcpClient::slotReadyRead);
@@ -9,12 +16,10 @@ TcpClient::TcpClient(QObject *parent) : QObject(parent) {
 	// 断连
 	connect(_socket, &QTcpSocket::disconnected, this, &TcpClient::signalDisconnectedToServer);
 	connect(_statusSocket, &QTcpSocket::disconnected, this, &TcpClient::signalDisconnectedToServer);
-}
 
-void TcpClient::establishConnect(const QString &host, int port, int statusPort) {
 	//连接到tcp服务器
-	_socket->connectToHost(host, port);
-	_statusSocket->connectToHost(host, statusPort);
+	_socket->connectToHost(_host, _port);
+	_statusSocket->connectToHost(_host, _statusPort);
 
 	//发送信号
 	emit signalEstablishConnect();
@@ -57,15 +62,27 @@ void TcpClient::slotReadyRead() {
 
 bool TcpClient::sendData(const int signal, const QByteArray &data) {
 	// 双信道发送
-	bool ret = _socket->write(data);
-	_socket->waitForBytesWritten();
+	switch (signal) {
+		case 0: {
+			// 订单菜单信道
+			bool ret = _socket->write(data);
+			//_socket->flush();
+			_socket->waitForBytesWritten();
 
-	if (!ret) {
-		qDebug() << "发送消息失败";
-		return false;
+			if (!ret) {
+				qDebug() << "发送消息失败";
+				return false;
+			}
+
+			return true;
+		}
+		case 1: {
+			// 状态信道
+			break;
+		}
+		default:
+			break;
 	}
-
-	return true;
 }
 
 void TcpClient::queryMenu() {

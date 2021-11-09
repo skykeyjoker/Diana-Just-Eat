@@ -13,9 +13,10 @@ using Json = nlohmann::json;
 class TcpClient : public QObject {
 	Q_OBJECT
 public:
-	explicit TcpClient(QObject *parent = nullptr);
+	explicit TcpClient(const QString &host, int port, int statusPort, QObject *parent = nullptr);
 
-	void establishConnect(const QString &host, int port, int statusPort);
+public slots:
+	void establishConnect();
 
 public:
 	// TODO 对外进提供封装好的订单信息发送、回复服务器、请求订单方法
@@ -34,6 +35,11 @@ private:
 
 	// TODO 客户端状态信道
 	QTcpSocket *_statusSocket;// 客户端状态信道
+
+private:
+	QString _host;
+	int _port;
+	int _statusPort;
 
 public slots:
 	void slotReadyRead();      // 菜单订单信道

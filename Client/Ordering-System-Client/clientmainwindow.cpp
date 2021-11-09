@@ -11,18 +11,16 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 
 	ui->setupUi(this);
 
-	//连接数据库，读取配置文件
-	// TODO 改进配置初始化
-	//connectDb();
+	// 读取配置文件
 	loadSetting();
 
-	// TODO TCP通信转到子线程
 	//新建Tcp客户端，连接Tcp服务端
-	client = new TcpClient;
-	_tcpHost = "127.0.0.1";
-	_tcpPort = 8081;
-	_tcpStatusPort = 8082;
-	client->establishConnect(_tcpHost, _tcpPort, _tcpStatusPort);
+	client = new TcpClient(_tcpHost, _tcpPort, _tcpStatusPort);
+	client->establishConnect();
+	//_tcpHost = "127.0.0.1";
+	//_tcpPort = 8081;
+	//_tcpStatusPort = 8082;
+	//client->establishConnect(_tcpHost, _tcpPort, _tcpStatusPort);
 
 	void (TcpClient::*pSignalQueryMenu)(const QByteArray) = &TcpClient::signalQueryMenu;
 	void (ClientMainWindow::*pSlotQueryMenu)(const QByteArray) = &ClientMainWindow::slotQueryMenu;
@@ -82,6 +80,7 @@ void ClientMainWindow::loadSetting() {
 		}
 		_tcpHost = QString::fromStdString(json["tcpHost"].get<std::string>());
 		_tcpPort = json["tcpPort"].get<int>();
+		_tcpStatusPort = json["tcpStatusPort"].get<int>();
 		_tableNum = QString::fromStdString(json["tableNum"].get<std::string>());
 
 		qDebug() << _tcpHost << _tcpPort << _tableNum;
@@ -217,7 +216,7 @@ void ClientMainWindow::showMenu() {
 
 void ClientMainWindow::initUI() {
 	// 初始化界面
-	QHBoxLayout *mainLay = new QHBoxLayout(ui->centralwidget);
+	QHBoxLayout *mainLay = new QHBoxLayout(centralWidget());
 
 	_viewGroupBox = new QGroupBox("菜品信息");
 	QVBoxLayout *cartWidget = new QVBoxLayout(_viewGroupBox);
@@ -308,9 +307,8 @@ void ClientMainWindow::initUI() {
 }
 
 void ClientMainWindow::on_actionSetting_triggered() {
-	// TODO 设置重写
-	//DialogSettings dlg(_dbHost, _dbName, _dbUser, _dbPasswd, _dbPort, _tcpHost, _tcpPort, _picHost, _tableNum);
-	//dlg.exec();
+	DialogSettings dlg(_tcpHost, _tcpPort, _tcpStatusPort, _tableNum);
+	dlg.exec();
 }
 
 void ClientMainWindow::slotUpdateMenu(const QByteArray data) {
@@ -504,7 +502,7 @@ void ClientMainWindow::slotAddtoCart() {
 	qDebug() << currentItemPrice;
 
 	// 状态栏显示一个添加菜品的临时消息
-	ui->statusbar->showMessage(tr("添加1份%1到购物车").arg(currentItemName), 1500);
+	statusBar()->showMessage(tr("添加1份%1到购物车").arg(currentItemName), 1500);
 
 	// 先判断购物车是否已经添加该菜品
 	if (_cartSet.contains(currentItemName)) {
@@ -559,6 +557,14 @@ void ClientMainWindow::slotCartChanged(QList<CartItem> changedCart) {
 	_cartLists.clear();
 	_cartLists = changedCart;
 
+	// 更新cartSet
+	_cartSet.clear();
+	for (const auto &currentCartItem : _cartLists) {
+		_cartSet.insert(currentCartItem.getItemName());
+	}
+	qDebug() << _cartLists.size();
+	qDebug() << _cartSet << _cartSet.size();
+
 	// 更新状态栏信息
 	_cartNumCount = 0;
 	_cartPriceCount = 0;
@@ -587,7 +593,7 @@ void ClientMainWindow::slotCartCleaned() {
 	lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
 
 	// 状态栏显示提醒消息
-	ui->statusbar->showMessage("购物车已清空", 1500);
+	statusBar()->showMessage("购物车已清空", 1500);
 }
 
 void ClientMainWindow::slotCartCheckOut() {
@@ -595,44 +601,61 @@ void ClientMainWindow::slotCartCheckOut() {
 	dlg->show();
 
 	void (DialogCheckOut::*pSignalReadyCheckOut)(QString) = &DialogCheckOut::signalReadyCheckOut;
-	void (ClientMainWindow::*pSlotReadyCheckOut)(QString) = &ClientMainWindow::slotReadyCheckOut;
+	void (ClientMainWindow::*pSlotReadyCheckOut)(const QString &) = &ClientMainWindow::slotReadyCheckOut;
 	connect(dlg, pSignalReadyCheckOut, this, pSlotReadyCheckOut);
 }
 
-void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信息
+void ClientMainWindow::slotReadyCheckOut(const QString &note)//结帐，发送socket信息
 {
 	qDebug() << "slotReadyCheckOut";
-	// TODO 订单消息结构改变，采用JSON格式
 	/*
-    A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
-*/
-	QStringList dataList;//用一个QStringList来存取要发送的订单socket信息
-	dataList << _tableNum << ";";
-	dataList << QString::number(_cartPriceCount) << ";";
-
-	QString cartContent;//讲购物车菜品信息格式化合并并存入到datalist
-	for (int i = 0; i < _cartLists.size(); i++) {
-		QString currentCartItem;
-		if (i != _cartLists.size() - 1)
-			currentCartItem = "[" + _cartLists.at(i).getItemName() + ":" + QString::number(_cartLists.at(i).getNum()) + "],";
-		else
-			currentCartItem = "[" + _cartLists.at(i).getItemName() + ":" + QString::number(_cartLists.at(i).getNum()) + "]";
-		qDebug() << currentCartItem;
-		cartContent += currentCartItem;
-		qDebug() << cartContent;
+	{
+		"code": 1,
+		"Table":"A03",
+		"Price":62.0,
+		"Carts": [
+			{
+  				"Name":"青椒肉丝",
+  				"Num": 1
+			},
+			{
+  				"Name":"五花肉鸡公煲",
+  				"Num": 2
+			}
+		],
+		"Note": "希望能好吃"
 	}
-	dataList << cartContent << ";";
-	dataList << note;
-	qDebug() << dataList;
+	*/
+	using Json = nlohmann::json;
+	Json jsonValue;
+	jsonValue["code"] = 1;
+	jsonValue["Table"] = _tableNum.toStdString();
+	jsonValue["Note"] = note.toStdString();
+	Json cartArr = Json::array();
 
-	QString data;//讲datalist转为整个的QString
-	foreach (QString s, dataList) {
-		data += s;
+	double cartPrice = 0;
+	for (const auto &cartItem : _cartLists) {
+		QString currentCartItemName = cartItem.getItemName();
+		int currentCartItemNum = cartItem.getNum();
+		cartPrice += cartItem.getSum();
+
+		// 构造结构
+		Json currentCartJson;
+		currentCartJson["Name"] = currentCartItemName.toStdString();
+		currentCartJson["Num"] = currentCartItemNum;
+
+		cartArr.push_back(currentCartJson);
 	}
-	qDebug() << data;
 
-	// TODO sendData已转为内部函数，发送订单信息变化
-	bool ret = client->sendNewOrder(data.toUtf8());
+	// 添加进jsonValue
+	jsonValue["Carts"] = cartArr;
+	jsonValue["Price"] = cartPrice;
+
+	QByteArray sendData = QString::fromStdString(jsonValue.dump()).toUtf8();// 待发送的完整数据
+	qDebug() << QString::fromUtf8(sendData);
+
+	// sendData已转为内部函数，发送订单信息变化
+	bool ret = client->sendNewOrder(sendData);
 	//bool ret = client->sendData(data.toUtf8());//发送socket信息
 	if (ret) {
 		QMessageBox::information(this, "下单成功", "已成功下单！");
@@ -649,7 +672,7 @@ void ClientMainWindow::slotReadyCheckOut(QString note)//结帐，发送socket信
 		lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
 
 		//状态栏显示提醒消息
-		ui->statusbar->showMessage("成功下单，购物车已清空", 2000);
+		statusBar()->showMessage("成功下单，购物车已清空", 2000);
 
 	} else {
 		QMessageBox::critical(this, "下单失败", "未能成功下单！请检查客户端设置并重新下单。");

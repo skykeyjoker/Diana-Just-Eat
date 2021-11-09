@@ -1,5 +1,6 @@
 {
   "tcpHost": "127.0.0.1",
   "tcpPort": 8081,
+  "tcpStatusPort": 8082,
   "tableNum": "A03"
 }

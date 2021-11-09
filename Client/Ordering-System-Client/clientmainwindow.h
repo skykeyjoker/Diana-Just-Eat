@@ -13,18 +13,13 @@
 #include <QMessageBox>
 #include <QPixmap>
 #include <QPushButton>
-#include <QSqlDatabase>
-#include <QSqlError>
-#include <QSqlQuery>
-#include <QSqlRecord>
+#include <QStatusBar>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QTextBrowser>
 #include <QThreadPool>
 #include <QTimer>
 #include <QToolBox>
-#include <QTreeWidget>
-#include <QTreeWidgetItem>
 #include <QVBoxLayout>
 
 #include "Dish.h"
@@ -40,7 +35,6 @@
 #include "timestamp.h"
 
 
-// TODO 删除UI文件
 QT_BEGIN_NAMESPACE
 namespace Ui {
 	class ClientMainWindow;
@@ -51,7 +45,6 @@ class ClientMainWindow : public QMainWindow {
 	Q_OBJECT
 
 private:
-	// TODO 架构改变，客户端无需接触到数据库操作；维护一个菜单列表即可（内存占用可能较大，但效率较高）
 	void loadSetting();// 读取配置文件
 
 private:
@@ -107,6 +100,8 @@ private:
 	// 初始化界面
 	void initUI();
 
+	Ui::ClientMainWindow *ui;
+
 public:
 	explicit ClientMainWindow(QWidget *parent = nullptr);
 	~ClientMainWindow();
@@ -126,14 +121,12 @@ public slots:
 
 	void slotCartCheckOut();
 
-	void slotReadyCheckOut(QString note);
+	void slotReadyCheckOut(const QString &note);
 
 	void slotDisconnectedToServer();
 
 
 private:
-	Ui::ClientMainWindow *ui;
-
 	//图片服务器
 	QString _picHost;
 
