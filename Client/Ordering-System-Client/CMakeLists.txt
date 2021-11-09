@@ -26,20 +26,12 @@ add_executable(Ordering-System-Client
         clientmainwindow.ui
         tcpclient.h
         tcpclient.cpp
-        readjson.h
-        readjson.cpp
-        EncryptDecrypt.h
-        EncryptDecrypt.cpp
-        writejson.h
-        writejson.cpp
         dialogsettings.h
         dialogsettings.cpp
         httpfiledownload.h
         httpfiledownload.cpp
         cartitem.h
         cartitem.cpp
-        timestamp.h
-        timestamp.cpp
         dialogcartview.h
         dialogcartview.cpp
         mybutton.h

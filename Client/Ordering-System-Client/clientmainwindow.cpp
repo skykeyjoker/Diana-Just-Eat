@@ -17,10 +17,6 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 	//新建Tcp客户端，连接Tcp服务端
 	client = new TcpClient(_tcpHost, _tcpPort, _tcpStatusPort);
 	client->establishConnect();
-	//_tcpHost = "127.0.0.1";
-	//_tcpPort = 8081;
-	//_tcpStatusPort = 8082;
-	//client->establishConnect(_tcpHost, _tcpPort, _tcpStatusPort);
 
 	void (TcpClient::*pSignalQueryMenu)(const QByteArray) = &TcpClient::signalQueryMenu;
 	void (ClientMainWindow::*pSlotQueryMenu)(const QByteArray) = &ClientMainWindow::slotQueryMenu;
@@ -279,7 +275,7 @@ void ClientMainWindow::initUI() {
 	/* 状态栏信息 */
 	lb_cartNumCount = new QLabel(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)), this);
 	lb_cartPriceCount = new QLabel(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)), this);
-	lb_currentTime = new QLabel(getFormatTimeStamp("yyyy-MM-dd hh:mm:ss"), this);
+	lb_currentTime = new QLabel(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"), this);
 
 	//添加到状态栏
 	statusBar()->addPermanentWidget(lb_cartNumCount);
@@ -289,7 +285,7 @@ void ClientMainWindow::initUI() {
 	//实时时间更新
 	timer = new QTimer(this);
 	connect(timer, &QTimer::timeout, [=]() {
-		lb_currentTime->setText(getFormatTimeStamp("yyyy-MM-dd hh:mm:ss"));
+		lb_currentTime->setText(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
 	});
 	timer->start(1000);
 
@@ -612,6 +608,7 @@ void ClientMainWindow::slotReadyCheckOut(const QString &note)//结帐，发送so
 	{
 		"code": 1,
 		"Table":"A03",
+	 	"OrderNum": "A032021109150031",
 		"Price":62.0,
 		"Carts": [
 			{
@@ -631,6 +628,7 @@ void ClientMainWindow::slotReadyCheckOut(const QString &note)//结帐，发送so
 	jsonValue["code"] = 1;
 	jsonValue["Table"] = _tableNum.toStdString();
 	jsonValue["Note"] = note.toStdString();
+	jsonValue["OrderNum"] = QString(_tableNum + QDateTime::currentDateTime().toString("yyyyMMddhhmmss")).toStdString();// 生成订单号
 	Json cartArr = Json::array();
 
 	double cartPrice = 0;

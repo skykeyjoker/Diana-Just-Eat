@@ -22,9 +22,6 @@ public:
 	double getPrice();
 	QString getPhoto();
 
-public:
-	QString serialize();
-
 private:
 	QString _name;
 	QString _type;

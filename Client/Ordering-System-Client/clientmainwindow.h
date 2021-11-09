@@ -1,6 +1,7 @@
 #ifndef CLIENTMAINWINDOW_H
 #define CLIENTMAINWINDOW_H
 
+#include <QDateTime>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -30,9 +31,7 @@
 #include "httpfiledownload.h"
 #include "json.hpp"
 #include "mybutton.h"
-#include "readjson.h"
 #include "tcpclient.h"
-#include "timestamp.h"
 
 
 QT_BEGIN_NAMESPACE

@@ -50,7 +50,3 @@ double Dish::getPrice() {
 QString Dish::getPhoto() {
 	return _photo;
 }
-
-QString Dish::serialize() {
-	return QString();
-}

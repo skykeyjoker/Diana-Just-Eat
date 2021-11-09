@@ -26,8 +26,6 @@ add_executable(Ordering-System-Server
         servermainwindow.ui
         EncryptDecrypt.h
         EncryptDecrypt.cpp
-        readjson.h
-        readjson.cpp
         dialogaddrecord.h
         dialogaddrecord.cpp
         dialogeditrecord.h
@@ -35,7 +33,6 @@ add_executable(Ordering-System-Server
         convertpic.h
         convertpic.cpp
         writejson.h
-        writejson.cpp
         dialoghistoryviewer.h
         dialoghistoryviewer.cpp
         dialogordersviewer.h
