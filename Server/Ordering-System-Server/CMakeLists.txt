@@ -18,21 +18,20 @@ include_directories(${CMAKE_CURRENT_LIST_DIR}/3rd)
 
 qt5_add_resources(qrc_FILES res.qrc)
 
+find_library(qhttpserver_lib NAMES qhttpserverd PATHS ${CMAKE_CURRENT_LIST_DIR}/3rd/qhttpserver/lib NO_DEFAULT_PATH)
+
 add_executable(Ordering-System-Server
         ${qrc_FILES}
         main.cpp
         servermainwindow.cpp
         servermainwindow.h
         servermainwindow.ui
-        EncryptDecrypt.h
-        EncryptDecrypt.cpp
         dialogaddrecord.h
         dialogaddrecord.cpp
         dialogeditrecord.h
         dialogeditrecord.cpp
         convertpic.h
         convertpic.cpp
-        writejson.h
         dialoghistoryviewer.h
         dialoghistoryviewer.cpp
         dialogordersviewer.h
@@ -50,6 +49,6 @@ add_executable(Ordering-System-Server
         dialogchartview.h
         dialogchartview.cpp
         3rd/json.hpp
-        )
+        SimpleWebServer.cpp SimpleWebServer.h)
 
-target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Charts Qt5::Multimedia)
+target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Charts Qt5::Multimedia ${qhttpserver_lib})

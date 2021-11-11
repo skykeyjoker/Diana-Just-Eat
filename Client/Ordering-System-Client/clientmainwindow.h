@@ -124,15 +124,7 @@ public slots:
 
 	void slotDisconnectedToServer();
 
-
 private:
-	//图片服务器
-	QString _picHost;
-
-	//Menu
-	int _menuCount;
-	int _alreadyDownloadMenuCount;
-
 	QDir _picPath;
 	QString _tableNum;
 };
