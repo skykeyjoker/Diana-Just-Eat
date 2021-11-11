@@ -31,9 +31,30 @@ void TcpClient::slotStatusReadyRead() {
 	data = _statusSocket->readAll();
 
 	// 判断是否为状态查询
-	// 立即返回存活确认
+	QString dataStr = QString::fromUtf8(data);
+	Json json = Json::parse(dataStr.toUtf8(), nullptr, false);
+	int code = json["code"].get<int>();
 
-	// 服务端发送后，waitForReadAvailable，阻塞等待活跃查询
+	if (code == 2) {
+		QString msgStr = QString::fromStdString(json["Msg"].get<std::string>());
+
+		if (msgStr == "OK")// 服务器返回"OK"，开启心跳包检测
+		{
+			heart = new TcpHeart;
+			// 开始心跳检测
+			heart->startHeartTimer();
+			connect(heart, &TcpHeart::sigHeartReq, this, &TcpClient::slotWriteHeartSocket);// 发送心跳包
+			connect(this, &TcpClient::sigHeartBack, heart, &TcpHeart::slotHeartBack);
+
+			// 处理心跳包异常
+			connect(heart, &TcpHeart::sigHeartBad, this, &TcpClient::slotHeartBad);
+		}
+
+		// 心跳反馈
+		if (msgStr == "HEART_BACK") {
+			emit sigHeartBack();
+		}
+	}
 }
 
 void TcpClient::slotReadyRead() {
@@ -78,7 +99,15 @@ bool TcpClient::sendData(const int signal, const QByteArray &data) {
 		}
 		case 1: {
 			// 状态信道
-			break;
+			bool ret = _statusSocket->write(data);
+			_statusSocket->waitForBytesWritten();
+
+			if (!ret) {
+				qDebug() << "发送心跳包失败";
+				return false;
+			}
+
+			return true;
 		}
 		default:
 			break;
@@ -86,7 +115,7 @@ bool TcpClient::sendData(const int signal, const QByteArray &data) {
 }
 
 void TcpClient::queryMenu() {
-	// TODO 向服务端发出消息请求（菜单订单信道），并将菜单消息返回
+	// 向服务端发出消息请求（菜单订单信道）
 	QString tstr = "{\"code\":0}";
 	sendData(0, tstr.toUtf8());
 }
@@ -96,6 +125,24 @@ bool TcpClient::sendNewOrder(const QByteArray &data) {
 	return sendData(0, data);
 }
 
-void TcpClient::replyStatusCheck() {
-	// TODO 返回服务端的请求状态查询
+void TcpClient::slotHeartBad() {
+	// 断线处理
+	qDebug() << "心跳包断线";
+	_socket->disconnectFromHost();
+	_statusSocket->disconnectFromHost();
+	emit signalDisconnectedToServer();
+}
+
+void TcpClient::slotWriteHeartSocket() {
+	QByteArray data;
+	// 构建状态返回
+	using Json = nlohmann::json;
+	Json jsonValue;
+	jsonValue["code"] = 2;
+	jsonValue["Msg"] = "Heart";
+	data = QString::fromStdString(jsonValue.dump(2)).toUtf8();
+
+	// 信道1（状态信道，向服务端发送心跳包）
+	qDebug() << "发送一次心跳包";
+	sendData(1, data);
 }

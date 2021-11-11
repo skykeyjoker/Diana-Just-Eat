@@ -1,11 +1,10 @@
 #ifndef TCPCLIENT_H
 #define TCPCLIENT_H
 
-// TODO 架构更新后TCP通信大改
-
 #include <QObject>
 #include <QTcpSocket>
 
+#include "TcpHeart.h"
 #include "json.hpp"
 
 using Json = nlohmann::json;
@@ -19,31 +18,33 @@ public slots:
 	void establishConnect();
 
 public:
-	// TODO 对外进提供封装好的订单信息发送、回复服务器、请求订单方法
+	// 对外进提供封装好的订单信息发送、回复服务器、请求订单方法
 	void queryMenu();
 	bool sendNewOrder(const QByteArray &data);
-	void replyStatusCheck();
 
 private:
-	// TODO senData函数底层抽象
+	// senData函数负责具体信息发送
 	bool sendData(const int signal, const QByteArray &data);
 
 private:
-	// TODO 初始化放在构造函数内
+	// 初始化放在构造函数内
 	// 两条信道
 	QTcpSocket *_socket;// 菜单订单信道
 
-	// TODO 客户端状态信道
+	// 客户端状态信道
 	QTcpSocket *_statusSocket;// 客户端状态信道
+	TcpHeart *heart;
 
 private:
 	QString _host;
 	int _port;
 	int _statusPort;
 
-public slots:
-	void slotReadyRead();      // 菜单订单信道
-	void slotStatusReadyRead();// 客户端状态信道
+private slots:
+	void slotReadyRead();       // 菜单订单信道
+	void slotStatusReadyRead(); // 客户端状态信道
+	void slotWriteHeartSocket();// 写心跳包
+	void slotHeartBad();        // 心跳包掉线处理
 
 signals:
 	void signalEstablishConnect();
@@ -53,6 +54,8 @@ signals:
 	void signalUpdateMenu(const QByteArray data);
 
 	void signalDisconnectedToServer();
+
+	void sigHeartBack();// 心跳包返回
 };
 
 #endif// TCPCLIENT_H

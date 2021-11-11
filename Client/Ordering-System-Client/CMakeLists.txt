@@ -43,6 +43,6 @@ add_executable(Ordering-System-Client
         myspinboxdelegate.h
         myspinboxdelegate.cpp
         3rd/json.hpp
-        Dish.cpp Dish.h)
+        Dish.cpp Dish.h TcpHeart.cpp TcpHeart.h)
 
 target_link_libraries(Ordering-System-Client PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql)

@@ -4,7 +4,28 @@
 
 预测是大版本颠覆= =
 
-## 重构版本架构设计
+## 项目简介
+
+一个基于Qt5实现的自主订餐系统。大量使用了TCP，Sqlite相关技术，~~支持多平台操作~~（理论上能跑Qt的操作环境就支持）。
+
+### 功能设计
+
+* 服务端实现4个主要功能：
+
+    * **实时**接收客户端订单，并能对订单进行查看、处理和重新处理已经处理的订单。已经处理的订单在**规定时间**后会归档。使用*QTcpServer*和*QTcpSocket*实现服务端与客户端通信。
+    * 查看历史订单。历史订单储存在**本地**Sqlite数据库中。使用*QSqlDataBase*等数据库操作封装库实现。
+    * 查看、修改菜单信息，支持对菜单进行增、删、查、改操作。为支持服务端、多客户端同时查看菜单信息，将菜单信息储存在**远程**MySql数据库中。使用*QSqlDataBase*等数据库操作封装库以及*
+      QNetworkAccessManager*等封装库实现。
+    * 对服务端配置进行修改，如远程Mysql服务端信息，本地Tcp服务端信息。涉及Json文件的读写。使用到了*QJson*等Json文件操作相关封装库。
+
+* 客户端实现4个主要功能
+
+    * 显示菜单，支持添加购物车。
+    * 对购物车进行增删
+    * 提交订单至服务端
+    * 修改客户端相关配置信息，如服务端Tcp服务信息。
+
+### 架构设计
 
 菜单信息、订单历史记录储存在服务端本地的SQLite数据库中。
 
@@ -17,7 +38,7 @@
 * 客户端有三种消息：
     * 请求菜单 `0`
     * 新订单 `1`
-    * 存活状态查询回应 `2` （2号信道）
+    * 心跳包 `2` （2号信道）
 * 服务端消息：
     * 菜单请求返回 `0`
     * 菜单更新 `1`
@@ -29,7 +50,7 @@
             * `0` 添加菜品种类
             * `1` 更新菜品种类信息
             * `2` 删除菜品
-    * 客户端存活状态查询 `2` （2号信道）
+    * 客户端心跳包回应 `2` （2号信道）
 
 客户端JSON格式：
 
@@ -62,7 +83,13 @@
   }
   ```
 
-* 存货状态回应：
+* 心跳包：
+  ```json
+  {
+    "code": 2,
+    "Msg": "Heart"
+  }
+  ```
 
 服务端JSON格式：
 
@@ -203,7 +230,19 @@
     ]
   }
   ```
-* 客户端存活状态查询
+* 心跳包回复
+  ```json
+  {
+    "code": 2,
+    "Msg": "OK"
+  }
+  ```
+  ```json
+  {
+    "code": 2,
+    "Msg": "HEART_BACK"
+  }
+  ```
 
 若服务端查询到某客户端超时，则从客户端列表中删除该客户端。若客户端检测到与服务器链接断开，则报错。
 
@@ -213,28 +252,7 @@
 
 订单单号：桌号+当前时间（年月日小时分钟秒）`A032021109150031`
 
-## 项目简介
-
-一个基于Qt5实现的自主订餐系统。大量使用了TCP，MySql，Sqlite相关技术，~~支持多平台操作~~（理论上能跑Qt的操作环境就支持）。
-
-项目大体架构如下：
-
-* 服务端实现4个主要功能：
-
-    * **实时**接收客户端订单，并能对订单进行查看、处理和重新处理已经处理的订单。已经处理的订单在**规定时间**后会归档。使用*QTcpServer*和*QTcpSocket*实现服务端与客户端通信。
-    * 查看历史订单。历史订单储存在**本地**Sqlite数据库中。使用*QSqlDataBase*等数据库操作封装库实现。
-    * 查看、修改菜单信息，支持对菜单进行增、删、查、改操作。为支持服务端、多客户端同时查看菜单信息，将菜单信息储存在**远程**MySql数据库中。使用*QSqlDataBase*等数据库操作封装库以及*
-      QNetworkAccessManager*等封装库实现。
-    * 对服务端配置进行修改，如远程Mysql服务端信息，本地Tcp服务端信息。涉及Json文件的读写。使用到了*QJson*等Json文件操作相关封装库。
-
-* 客户端实现4个主要功能
-
-    * 显示菜单，支持添加购物车。
-    * 对购物车进行增删
-    * 提交订单至服务端
-    * 修改客户端相关配置信息，如服务端Tcp服务信息。
-
-项目截图：
+### 项目截图：
 
 （写完再放）
 
@@ -547,268 +565,32 @@ for(int i=0; i<_tcpSocket.size(); i++)
 
 #### 菜单展示
 
-客户端主界面使用`QListWidget`显示菜品信息。启动时将首先调用`ClientMainWindow::loadMenu()`,通过如下方式遍历远程MySQL数据库中的*MenuType*表与*menu*表，将菜品信息储存。
+客户端主界面使用`QListWidget`显示菜品信息。启动时将首先调用`ClientMainWindow::loadMenu()`, 向服务端发送菜单请求信息，并储存服务器返回的菜单。
+
+首先应清除之前储存的信息。
 
 ```cpp
-void ClientMainWindow::loadMenu()  //加载菜品
-{
-    ...
-}
+if (!_dishes.isEmpty()) // 菜品列表
+	_dishes.clear();
+if (_menuTypeList.isEmpty())  // 菜品种类列表
+	_dishes.clear();
+if (!_menuTypeNumHash.isEmpty())  // 菜品种类-数量键值对
+	_menuTypeNumHash.clear();
+if (!_dishNameAndFileNameHash.isEmpty()) // 菜品名-菜品文件名键值对
+	_dishNameAndFileNameHash.clear();
 ```
 
-首先应清除之前储存的信息并将购物车清空。
+接着将返回的json解析并储存。
 
-```cpp
-ui->statusbar->showMessage("正在更新菜单信息，请稍等..."); //更新一下状态栏消息
+首先将菜品的文件信息插入*QListWidget*中，后利用线程池多线程下载菜品图片，并将其加载到对应菜品栏中。
 
-/* 清除之前的数据 */
-if(_menuList->count())  //菜单列表
-{
-    _menuList->clear();
-}
-
-if(!_menuTypeList.isEmpty())  //菜品种类列表
-{
-    _menuTypeList.clear();
-}
-
-if(!_menuNameList.isEmpty())  //菜品名列表
-{
-     _menuNameList.clear();
-}
-
-if(!_menuTypeNumList.isEmpty())  //菜品种类名列表
-{
-    _menuTypeNumList.clear();
-}
-
-if(!_menuFileNameList.isEmpty())  //菜品图片文件名列表
-{
-     _menuFileNameList.clear();
-}
-
-//TODO 购物车不清空就能更新信息
-if(!cartLists.isEmpty())  //购物车也要清空一下，防止提交旧的菜品信息
-{
-     cartLists.clear();
-
-     _cartNumCount = 0;
-     _cartPriceCount = 0;
-}
-```
-
-接着遍历一下*menuType*表，记录一下菜品分类。注意`select`完表后，应先执行一下`next()`让他指向第一条记录。
-
-```cpp
-_alreadyDownloadMenuCount=0;
- _menuCount=0;
-
-//先遍历menuType表，记录菜品分类
-QSqlQuery query(db);
-qDebug()<<query.exec("SELECT * FROM menuType WHERE 1");
-int menuTypeCount = query.size();  //菜品种类总共数量
-
-qDebug()<<"更新："<<menuTypeCount;
-query.next();  //必须执行一下.next()让他指向第一条记录，否则记录会指向第一条记录之前的记录
-
-for(int i=1;i<=menuTypeCount;i++)
-{
-    _menuCount+=query.value(2).toInt(); //_menuCount记录着一共多少菜品（是总菜品数！而不是总菜品种类数！）
-
-    query.next();
-}
-```
-
-记录完菜品分类后，就要以**菜品种类**为单位进行循环，遍历*menu*表，将每一个菜品记录，并同时将菜品图片下载到缓存文件夹中。这里注意应该先将*query*查询类使用`first()`重新指向第一条记录。
-
-```cpp
-
-    query.first();  //重新指向第一条记录
-
-    for(int i=1;i<=menuTypeCount;i++)
-    {
-        //添加一种菜品种类
-        QString menuTypeName = query.value(1).toString();
-        qDebug()<<menuTypeName;
-        int menuTypeNum = query.value(2).toInt();
-        _menuTypeList.append(menuTypeName);
-        _menuTypeNumList.append(menuTypeNum);
-
-        _menuList->setIconSize(QSize(150,150));
-
-
-        QSqlQuery dishQuery(db);
-        qDebug()<<dishQuery.exec(tr("SELECT * FROM menu WHERE Type='%1'").arg(menuTypeName));
-        qDebug()<<dishQuery.lastError().text();
-        qDebug()<<dishQuery.size();
-        dishQuery.next();
-
-
-        for(int j=1;j<=menuTypeNum;j++)
-        {
-            //添加一个菜品
-            QString currenFileName = dishQuery.value(1).toString()+dishQuery.value(5).toString().mid(dishQuery.value(5).toString().lastIndexOf("."),-1);
-            QString currentDishName = dishQuery.value(1).toString();
-            double currentDishPrice = dishQuery.value(4).toDouble();
-            QString currentDishInfo = dishQuery.value(3).toString();
-
-            QString currentList = tr("%1\t%2 RMB\n\n%3").arg(currentDishName).arg(QString::number(currentDishPrice)).arg(currentDishInfo);
-            _menuNameList.append(currentList);
-            _menuFileNameList.append(currenFileName);
-
-            QString url = dishQuery.value(5).toString();
-            qDebug()<<"currenFileName:"<<currenFileName;
-
-
-            //删除缓存并下载
-            if(_picPath.exists(currenFileName)) //先删除缓存
-            {
-                _picPath.remove(currenFileName);
-            }
-
-            HttpFileDownload *picDownload = new HttpFileDownload(url,currenFileName);
-
-            connect(picDownload,&HttpFileDownload::signalDownloadFinished,[=](){
-
-                qDebug()<<"download finished...";
-
-                emit signalAddAlreadyDownloadMenuCount();  //下载完一张图片，就发送一个下载完成消息
-
-            });
-
-            dishQuery.next();
-        }
-
-
-        query.next();
-    }
-
-```
-
-这里应该注意一下菜品信息显示的时机，应该待全部菜品图片下载结束后才将菜品显示到*QListWidget*
-中。因而每当下载完图片后，都要发送一次图片下载完成消息`void signalAddAlreadyDownloadMenuCount()`。
-
-在`void slotAddAlreadyDownloadMenuCout()`槽函数中，将已经下载的图片数`_alreadyDownloadMenuCount`
-累加，当`_alreadyDownloadMenuCount == _menuCount`即图片全部下载完成时，执行`insertItems()`，将菜品信息插入到*QListWidget*中显示出来。
-
-```cpp
-void ClientMainWindow::slotAddAlreadyDownloadMenuCount()
-{
-    _alreadyDownloadMenuCount++;  //已经下载的图片数+1
-
-    qDebug()<<"alreadyDownloadMenuTypeCount:"<<_alreadyDownloadMenuCount;
-
-
-    if(_alreadyDownloadMenuCount==_menuCount)  //如果图片全部下载完成
-    {
-        insertItems();  //菜品图片全部下载完成后，准备开始添加菜品信息到listwidget中
-    }
-}
-```
-
-`insertItems()`应下插入菜种类头，再插入菜种类下的头。
-
-```cpp
-void ClientMainWindow::insertItems()
-{
-    int currentDishCount = 0;
-
-    qDebug()<<"_menuList->count"<<_menuList->count();
-    qDebug()<<"_menuTypeList.size"<<_menuTypeList.size();
-    qDebug()<<"_menuTypeNumList.size"<<_menuTypeNumList.size();
-    qDebug()<<"_menuNameList.size"<<_menuNameList.size();
-    qDebug()<<"_menuFileNameList.size"<<_menuFileNameList.size();
-
-
-    for(int i=0;i<_menuTypeList.size();i++) //按菜的种类来
-    {
-        //先插入菜种类头
-        QListWidgetItem *currentParentItem = new QListWidgetItem;
-        currentParentItem->setText(tr("%1\t共%2种菜品").arg(_menuTypeList.at(i)).arg(QString::number(_menuTypeNumList.at(i))));
-        _menuList->addItem(currentParentItem);
-
-        //再插入子类
-        for(int j=0;j<_menuTypeNumList.at(i);j++)
-        {
-            QListWidgetItem *currentChildItem = new QListWidgetItem;
-            currentChildItem->setIcon(QIcon(_picPath.path()+"/"+_menuFileNameList.at(currentDishCount)));
-            currentChildItem->setText(_menuNameList.at(currentDishCount));
-
-            _menuList->addItem(currentChildItem);
-
-            currentDishCount++;
-        }
-
-    }
-
-    ui->statusbar->showMessage("菜单更新成功！",2000); //状态栏更新一下消息
-}
-
-```
-
-当单击某项菜品后，应将菜品详细信息展示在*GroupBox*中。
-
-```cpp
-void ClientMainWindow::slotItemClicked(QListWidgetItem *item)  //选择一个菜品，展示菜品详细信息
-{
-    qDebug()<<"item clicked";
-    QString itemStr = item->text();
-    //分离菜品信息
-    QString dishName = itemStr.mid(0,itemStr.indexOf("\t"));
-    QString dishPrice = itemStr.mid(itemStr.indexOf("\t")+1,itemStr.indexOf("\n")-itemStr.indexOf("\t")-1);
-    QString dishInfo = itemStr.mid(itemStr.lastIndexOf("\n")+1,-1);
-    QString dishPhotoFileName;
-
-    //图片信息分离
-    if(_picPath.exists(dishName+".png"))
-    {
-       dishPhotoFileName = _picPath.path()+"/"+dishName+".png";
-    }
-    if(_picPath.exists(dishName+".jpg"))
-    {
-        dishPhotoFileName = _picPath.path()+"/"+dishName+".jpg";
-    }
-    if(_picPath.exists(dishName+".jpeg"))
-    {
-        dishPhotoFileName = _picPath.path()+"/"+dishName+".jpeg";
-    }
-    //QString dishPhotoFileName = _picPath.path()+"/"+_menuFileNameList.at(_menuNameList.indexOf(dishName));
-    qDebug()<<dishName;
-    qDebug()<<dishPrice;
-    qDebug()<<dishInfo;
-    qDebug()<<dishPhotoFileName;
-    qDebug()<<_menuNameList;
-
-    //展示菜品信息
-    lb_pic->setPixmap(QPixmap(dishPhotoFileName));
-    lb_dishNameContent->setText(dishName);
-    lb_dishPriceContent->setText(dishPrice);
-    tb_dishInfo->setText(dishInfo);
-}
-```
+当单击某项菜品后，应将菜品详细信息展示在*GroupBox*中。通过检测该栏的icon是否为空检测是否为具体菜品。
 
 #### 购物车功能
 
 购物车功能首先在菜品展示页中放置一个重写的*MyButton*类动画图片按钮。当菜品添加到购物车时，播放一下购物车按钮的动画。
 
 单击购物车按钮，也播放一个动画然后进入购物车查看界面。
-
-```cpp
-void ClientMainWindow::slotCartBtnClicked()
-{
-    btn_cart->showAddAnimation(); //先放个动画
-
-    DialogCartView *dlg = new DialogCartView(cartLists);
-    dlg->show();
-
-    //连接购物车查看界面的信号
-    void (DialogCartView::*pSignalCartChanged)(QList<CartItem>) = &DialogCartView::signalCartChanged;
-    void (ClientMainWindow::*pSlotCartChanged)(QList<CartItem>) = &ClientMainWindow::slotCartChanged;
-    connect(dlg,pSignalCartChanged,this,pSlotCartChanged);
-    connect(dlg,&DialogCartView::signalCartCleaned,this,&ClientMainWindow::slotCartCleaned);
-    connect(dlg,&DialogCartView::signalCartCheckOut,this,&ClientMainWindow::slotCartCheckOut);
-}
-```
 
 购物车查看界面由对话框类*DialogCartView*实现。购物车查看界面要实现对购物车内菜品数量修改的功能和购物车清空、结算功能。
 
@@ -817,292 +599,43 @@ void ClientMainWindow::slotCartBtnClicked()
 当双击编辑购物车数量后，调用`slotCartChanged(QTableWidgetItem *item)`槽函数进行处理。重新计算菜品总价和菜品总数并更新购物车界面显示信息，也要向*ClientMainWindow*
 发送购物车列表改变的消息。
 
-```cpp
-void DialogCartView::slotCartChanged(QTableWidgetItem *item)
-{
-
-    qDebug()<<"row:"<<item->row()<<" "<<"column:"<<item->column();
-
-    QTableWidgetItem *currentItemPrice = new QTableWidgetItem;
-    currentItemPrice->setText(QString::number(_cartList.at(item->row()).getSum())); //重新计算当前菜品总价
-
-
-    const_cast<CartItem&>(_cartList.at(item->row())).setItemNums(item->text().toInt());
-
-    //_cartPrice和_cartNum清零
-    _cartPrice = 0;
-    _cartNum = 0;
-
-    //计算当前购物车总价
-    for(int i=0;i<_cartList.size();i++)
-    {
-        _cartPrice+=_cartList.at(i).getSum();
-    }
-    //计算当前购物车总数
-    for(int i=0;i<_cartList.size();i++)
-    {
-        _cartNum+=_cartList.at(i).getNum();
-    }
-
-    //更新购物车信息
-    lb_cartNumContent->setText(QString::number(_cartNum));
-    lb_cartPriceContent->setText(QString::number(_cartPrice));
-
-    emit signalCartChanged(_cartList);  //发送购物车改变消息
-}
-```
-
 *ClientMainWindow*中关联的槽函数`slotCartChanged(QList<CartItem>changedCart)`
 
-```cpp
-void ClientMainWindow::slotCartChanged(QList<CartItem>changedCart)
-{
-    qDebug()<<"slotCartChanged";
-
-    //更新cartLists内容
-    cartLists.clear();
-    cartLists=changedCart;
-
-    //更新状态栏信息
-    _cartNumCount = 0;
-    _cartPriceCount = 0;
-
-    for(int i=0;i<cartLists.size();i++)
-    {
-        _cartNumCount+=cartLists.at(i).getNum();
-        _cartPriceCount+=cartLists.at(i).getSum();
-    }
-
-    lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
-    lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
-}
-```
+购物车内容修改后要同步修改`_cartSet`与`_cartList`。
 
 ##### 购物车清空功能
 
 单击清空购物车按钮，调用对应槽函数清空购物车信息，发送购物车清空消息。
 
-```cpp
-void DialogCartView::btnClearClicked()
-{
-    int ret = QMessageBox::question(this,"请求确认","您确认要清空购物车吗？");
-
-    if(ret == QMessageBox::Yes)
-    {
-        _cartList.clear(); //购物车列表清空
-
-        for(int i=_cartTable->rowCount()-1;i>=0;i--)  //展示的tablewidget倒序清空
-        {
-            _cartTable->removeRow(i);
-        }
-
-        //更新购物车信息
-        lb_cartNumContent->setText("0");
-        lb_cartPriceContent->setText("0");
-
-        emit signalCartCleaned();  //发送购物车清空信息
-    }
-}
-```
-
 *ClientMainWindow*中关联的槽函数`slotCartCleaned()`
 
-```cpp
-void ClientMainWindow::slotCartCleaned()
-{
-    qDebug()<<"slotCartCleaned()";
-    //更新cartLists内容
-    cartLists.clear();
-
-    //更新状态栏信息
-    _cartNumCount = 0;
-    _cartPriceCount = 0;
-
-
-    lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
-    lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
-
-    //状态栏显示提醒消息
-    ui->statusbar->showMessage("购物车已清空",1500);
-}
-```
+购物车清空后要同步修改`_cartSet`与`_cartList`。
 
 ##### 购物车结算功能
 
 单击结算按钮，调用对应槽函数处理，发送购物车结算消息。
 
-```cpp
-void DialogCartView::btnCheckOutBtnClicked()
-{
-    if(_cartTable->rowCount()==0)
-    {
-        QMessageBox::critical(this,"错误","购物车为空！");
-        return;
-    }
-    emit signalCartCheckOut();  //发送购物车结算消息
-    this->close();
-}
-```
-
 *ClientMainWindow*中关联的槽函数`slotCartCheckOut()`将初始化对话框类*DialogCheckout*，进入订单结算界面。
-
-```cpp
-void ClientMainWindow::slotCartCheckOut()
-{
-    DialogCheckOut *dlg = new DialogCheckOut(cartLists,_cartNumCount,_cartPriceCount);
-    dlg->show();
-
-    void (DialogCheckOut::*pSignalReadyCheckOut)(QString) = &DialogCheckOut::signalReadyCheckOut;
-    void (ClientMainWindow::*pSlotReadyCheckOut)(QString) = &ClientMainWindow::slotReadyCheckOut;
-    connect(dlg,pSignalReadyCheckOut,this,pSlotReadyCheckOut);
-}
-```
 
 订单结算界面将显示订单信息以便最后确认，并询问用户输入订单备注。
 
 用户点击结算按钮后，调用对应槽函数向*ClientMainWindow*发送`void signalReadyCheckOut(QString note)`消息。
 
-```cpp
-connect(btn_checkout,&QPushButton::clicked,[=](){
-    int ret = QMessageBox::question(this,"请求确认","您确认要提交此订单吗？");
-    if(ret == QMessageBox::Yes)
-    {
-        emit signalReadyCheckOut(_textNote->toPlainText()); //发送结算消息
-        this->close();
-    }
-});
-```
-
-*ClientMainWindow*中对应处理的槽函数`slotReadyCheckOut(QString note)`将完成结算并向服务端发送订单socket信息。
-
-```cpp
-void ClientMainWindow::slotReadyCheckOut(QString note)  //结帐，发送socket信息
-{
-    qDebug()<<"slotReadyCheckOut";
-
-/*
-	A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
-*/
-    QStringList dataList; //用一个QStringList来存取要发送的订单socket信息
-    dataList<<_tableNum<<";";
-    dataList<<QString::number(_cartPriceCount)<<";";
-
-    QString cartContent;  //讲购物车菜品信息格式化合并并存入到datalist
-    for(int i=0; i<cartLists.size(); i++)
-    {
-        QString currentCartItem;
-        if(i!=cartLists.size()-1)
-            currentCartItem="["+cartLists.at(i).getItemName()+":"+QString::number(cartLists.at(i).getNum())+"],";
-        else
-            currentCartItem="["+cartLists.at(i).getItemName()+":"+QString::number(cartLists.at(i).getNum())+"]";
-        qDebug()<<currentCartItem;
-        cartContent+=currentCartItem;
-        qDebug()<<cartContent;
-    }
-    dataList<<cartContent<<";";
-    dataList<<note;
-    qDebug()<<dataList;
-
-    QString data;  //讲datalist转为整个的QString
-    foreach(QString s, dataList)
-    {
-        data+=s;
-    }
-    qDebug()<<data;
-
-    bool ret = client->sendData(data.toUtf8());  //发送socket信息
-    if(ret == true)
-    {
-        QMessageBox::information(this,"下单成功","已成功下单！");
-        //清空购物车
-        cartLists.clear();
-
-        //更新状态栏信息
-        _cartNumCount = 0;
-        _cartPriceCount = 0;
-
-
-        lb_cartNumCount->setText(tr("购物车菜品数：%1").arg(QString::number(_cartNumCount)));
-        lb_cartPriceCount->setText(tr("购物车总价：%1").arg(QString::number(_cartPriceCount)));
-
-        //状态栏显示提醒消息
-        ui->statusbar->showMessage("成功下单，购物车已清空",2000);
-
-    }
-    else
-    {
-        QMessageBox::critical(this,"下单失败","未能成功下单！请检查客户端设置并重新下单。");
-    }
-}
-```
+*ClientMainWindow*中对应处理的槽函数`slotReadyCheckOut(const QString &note)`将完成结算并向服务端发送订单socket信息。
 
 #### 订单信息发送
 
 客户端启动后，将首先调用`TcpClient`类，使用`TcpClient::establishConnect(QString host, int port)`建立与服务端的socket连接。
 
-当用户下单时，将调用槽函数`slotReadyCheckOut(QString note)`向服务端发送订单socket信息，详细内容见上。
+当用户下单时，将调用槽函数`slotReadyCheckOut(const QString &note)`向服务端发送订单socket信息，详细内容见源码。
 
 #### 修改客户端配置
 
 用户在界面菜单中选择修改客户端配置时进入客户端配置修改界面，与服务端配置修改功能相似。
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ____
 
-## TODO LISTS
-
-### 服务端
-
-1. ~~任务配置tab加入Http服务器信息修改，读取、写入json功能也做相应增改。~~
-2. ~~删除订单时删除本地存储的图片，以及远程存取的图片。~~
-3. ~~菜单信息更新（包括增加、删除、修改）后，向客户端发送消息，要求客户端更新菜单数据。~~
-4. ~~新建一个menuType表，记录菜品种类和对应种类的菜品数。修改、增加菜单信息时更新该menuType表。~~
-5. ~~完善历史订单查看功能。（目前问题：第一次搜寻结果为空白时，初始化后才能进行下一次搜寻，否则结果为空）~~
-6.
-7. 长远目标：菜品销售分析。
-8. 优化！优化！优化！
-
-### 客户端
-
-1. ~~菜单列表显示~~
-2. ~~客户端设置~~
-3. ~~菜品详细信息查看~~
-4. ~~购物车功能实现~~
-5. ~~接收服务端菜单更新信息，实时更新菜单。~~
-6. ~~状态栏实时菜单更新消息，购物车数目、总价和实时时间更新。~~
-7. ~~购物车列表添加代理控件~~
-8.
-9. 优化！优化！优化！
-
-​                                                                                                                                                                *
-作者：skykey*
+作者：Skykey
 
 ------
 
