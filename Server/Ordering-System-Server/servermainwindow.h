@@ -29,7 +29,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "Dish.h"
 #include "SimpleWebServer.h"
+#include "TcpServer.h"
 #include "dialogaddrecord.h"
 #include "dialogeditrecord.h"
 #include "dialoghistoryviewer.h"
@@ -78,8 +80,11 @@ private:
 	QTableView *_view_Menu;
 	QSqlTableModel *_model;
 	QSqlTableModel *_menuTypeModel;
-	QList<QString> _menuTypeList;
+
+	QList<QString> _menuTypeList;// 菜品种类列表
 	QString oldDishType;
+	QVector<Dish> _dishes;               // 菜品列表
+	QHash<QString, int> _menuTypeNumHash;// 菜品种类与数量键值对
 
 private:
 	// Config Tab
@@ -107,19 +112,12 @@ private:
 private:
 	// TCP
 	bool startTcpServer();
+	TcpServer *tcpServer;
 
 	// TCP Info
 	QString _tcpHost;
 	int _tcpPort;
 	int _tcpStatusPort;
-
-	// 订单菜单信道
-	QTcpServer *_tcpServer;
-	QList<QTcpSocket *> _tcpClients;
-
-	// 状态信道
-	QTcpServer *_tcpStatusServer;
-	QList<QTcpSocket *> _tcpStatusClients;
 
 private:
 	// Web服务器
@@ -129,13 +127,6 @@ private:
 	QThread *_webThread;
 
 public slots:
-	void slotNewConnection();
-	void slotReadyRead();
-	void slotStatusNewConnection();
-	void slotStatusReadyRead();
-
-	void slotSendMenuUpdateMessage();
-
 	void slotBtnViewerClicked();
 	void slotBtnHistoryClicked();
 	void slotBtnHandleClicked();
@@ -154,6 +145,11 @@ public slots:
 
 
 	void closeEvent(QCloseEvent *);//重写退出事件
+
+public:
+	// 菜单相关信号槽
+	void slotQueryMenu(QTcpSocket *target);   // 客户端请求菜单
+	void slotNewOrder(const QByteArray &menu);// 客户端发送新订单
 
 signals:
 	void sendMenuUpdateSignal();//更新客户端菜单信号

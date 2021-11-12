@@ -52,6 +52,7 @@ void TcpClient::slotStatusReadyRead() {
 
 		// 心跳反馈
 		if (msgStr == "HEART_BACK") {
+			qDebug() << "HEART BACK ONCE";
 			emit sigHeartBack();
 		}
 	}

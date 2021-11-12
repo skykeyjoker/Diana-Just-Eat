@@ -36,6 +36,8 @@ add_executable(Ordering-System-Server
         dialoghistoryviewer.cpp
         dialogordersviewer.h
         dialogordersviewer.cpp
+        Dish.h
+        Dish.cpp
         timestamp.h
         timestamp.cpp
         httpfileload.h
@@ -49,6 +51,6 @@ add_executable(Ordering-System-Server
         dialogchartview.h
         dialogchartview.cpp
         3rd/json.hpp
-        SimpleWebServer.cpp SimpleWebServer.h)
+        SimpleWebServer.cpp SimpleWebServer.h TcpServer.cpp TcpServer.h)
 
 target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Charts Qt5::Multimedia ${qhttpserver_lib})

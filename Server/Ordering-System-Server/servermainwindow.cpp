@@ -23,11 +23,13 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
 	// 创建Tcp服务器，并监听
 	// TODO 启动TCP服务器分离
+	// TODO TCP服务器分置为类
 	bool tcpRet = startTcpServer();
 	if (!tcpRet) {
 		QMessageBox::critical(this, "Tcp服务端未建立", "未能建立Tcp服务端!");
 		exit(1);
-	}
+	} else
+		qDebug() << "成功启动TCP服务端";
 
 	// 获取图片目录
 	if (!QDir::current().exists("Pic"))
@@ -38,7 +40,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 	startWebServer();
 
 	//收到sendMenuUpdateSiganl后调用slotSendMenuUpdateMessage槽函数
-	connect(this, &ServerMainWindow::sendMenuUpdateSignal, this, &ServerMainWindow::slotSendMenuUpdateMessage);
+	//connect(this, &ServerMainWindow::sendMenuUpdateSignal, this, &ServerMainWindow::slotSendMenuUpdateMessage);
 
 	// TODO 分离初始化UI
 	initUI();
@@ -107,28 +109,24 @@ bool ServerMainWindow::connectDb() {
 }
 
 bool ServerMainWindow::startTcpServer() {
-	bool tcpRet, tcpStatusRet;
-	_tcpServer = new QTcpServer;
-	tcpRet = _tcpServer->listen(QHostAddress::Any, _tcpPort);
+	bool ret;
+	tcpServer = new TcpServer(_tcpHost, _tcpPort, _tcpStatusPort);
 
-	if (!tcpRet) {
-		return false;
-	} else
-		qDebug() << "成功建立Tcp服务端";
+	ret = tcpServer->establishServer();
 
-	_tcpStatusServer = new QTcpServer;
-	tcpStatusRet = _tcpStatusServer->listen(QHostAddress::Any, _tcpStatusPort);
+	// 菜单请求
+	void (TcpServer::*pSigQueryMenu)(QTcpSocket *) = &TcpServer::sigQueryMenu;
+	void (ServerMainWindow::*pSlotQueryMenu)(QTcpSocket *) = &ServerMainWindow::slotQueryMenu;
+	connect(tcpServer, pSigQueryMenu, this, pSlotQueryMenu);
 
-	if (!tcpStatusRet) {
-		return false;
-	} else
-		qDebug() << "成功建立Tcp状态服务端";
+	// 新订单
+	void (TcpServer::*pSigNewOrder)(const QByteArray &) = &TcpServer::sigNewOrder;
+	void (ServerMainWindow::*pSlotNewOrder)(const QByteArray &) = &ServerMainWindow::slotNewOrder;
+	connect(tcpServer, pSigNewOrder, this, pSlotNewOrder);
 
-	// 当有客户端连接时，调用slotNewConnection方法
-	connect(_tcpServer, &QTcpServer::newConnection, this, &ServerMainWindow::slotNewConnection);
-	connect(_tcpStatusServer, &QTcpServer::newConnection, this, &ServerMainWindow::slotStatusNewConnection);
+	// TODO 菜单更新
 
-	return true;
+	return ret;
 }
 
 void ServerMainWindow::startWebServer() {
@@ -335,134 +333,160 @@ void ServerMainWindow::initUI() {
 	sound = new QSound(":/Res/clock.wav");
 }
 
-void ServerMainWindow::slotNewConnection() {
-	qDebug() << "客户端连接";
+void ServerMainWindow::slotQueryMenu(QTcpSocket *target) {
+	// 客户端请求菜单处理
+	QByteArray sendData;
+	using Json = nlohmann::json;
+	Json sendDataJson;
+	sendDataJson["code"] = 0;
 
-	//判断是否有未处理的连接
-	while (_tcpServer->hasPendingConnections()) {
-		qDebug() << "处理客户端链接";
-		//调用nextPendingConnection去获得连接的socket
-		QTcpSocket *currentSocket = _tcpServer->nextPendingConnection();
-		_tcpClients.push_back(currentSocket);
+	// 插入menu数组
+	Json menuArr = Json::array();
+	if (_dishes.isEmpty()) {
+		// 首次发送菜单，构造菜单列表
+		for (int i = 0; i < _model->rowCount(); ++i) {
+			auto currentDishRecord = _model->record(i);
+			QString currentDishName = currentDishRecord.value("Name").toString();
+			QString currentDishType = currentDishRecord.value("Type").toString();
+			QString currentDishInfo = currentDishRecord.value("Info").toString();
+			double currentDishPrice = currentDishRecord.value("Price").toDouble();
+			QString currentDishPhoto = currentDishRecord.value("Photo").toString();
 
-		//为新的socket提供槽函数，来接收数据
-		// TODO 添加断连处理
-		connect(currentSocket, &QTcpSocket::readyRead, this, &ServerMainWindow::slotReadyRead);
-		connect(currentSocket, &QTcpSocket::disconnected, [=, this]() {
-			_tcpClients.removeAll(currentSocket);
-		});
+			Dish currentDish(currentDishName, currentDishType, currentDishInfo, currentDishPrice, currentDishPhoto);
+			_dishes.push_back(currentDish);
+		}
 	}
-}
+	// 已有菜单列表
+	for (auto currentDish : _dishes) {
+		Json currentDishJson;
+		currentDishJson["Name"] = currentDish.getName().toStdString();
+		currentDishJson["Type"] = currentDish.getType().toStdString();
+		currentDishJson["Info"] = currentDish.getInfo().toStdString();
+		currentDishJson["Price"] = currentDish.getPrice();
+		currentDishJson["Photo"] = currentDish.getPhoto().toStdString();
 
-void ServerMainWindow::slotStatusNewConnection() {
-	qDebug() << "客户端状态链接";
-
-	// 判断是否有未处理的链接
-	while (_tcpStatusServer->hasPendingConnections()) {
-		qDebug() << "处理客户端状态链接";
-		QTcpSocket *currentSocket = _tcpStatusServer->nextPendingConnection();
-		_tcpStatusClients.push_back(currentSocket);
-
-		// TODO 开始心跳包
-
-		connect(currentSocket, &QTcpSocket::readyRead, this, &ServerMainWindow::slotStatusReadyRead);
-		connect(currentSocket, &QTcpSocket::disconnected, [=, this]() {
-			_tcpStatusClients.removeAll(currentSocket);
-		});
+		menuArr.push_back(currentDishJson);
 	}
-}
+	sendDataJson["menu"] = menuArr;
 
-void ServerMainWindow::slotReadyRead() {
-	//因为是多客户端，我没写判断是哪个socket发送的消息，所以我这里将整个socketlist遍历一下来判断是那个socket发送的消息
-	// TODO 你真是傻逼
-	QTcpSocket *currentSocket = (QTcpSocket *) sender();
-	QByteArray buff = currentSocket->readAll();
-	qDebug() << "收到一条客户端消息" << currentSocket;
-	qDebug() << buff;
+	// 插入menuType数组
+	Json menuTypeArr = Json::array();
+	if (_menuTypeNumHash.isEmpty()) {
+		// 首次发送菜单，构造菜单种类数量对应表
+		for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
+			auto currentMenuTypeRecord = _menuTypeModel->record(i);
+			QString currentMenuTypeName = currentMenuTypeRecord.value("TypeName").toString();
+			int currentMenuTypeNum = currentMenuTypeRecord.value("Num").toInt();
 
-	// TODO 格式化处理订单消息 JSON
-
-	//订单消息格式为"A03;127.5;[老八麻辣烫:5];3333"
-	QString str = QString::fromUtf8(buff);//先将订单消息转化为字符串
-	//打印一下调信息，查看字符串内容及分区的信息
-	qDebug() << str;
-	qDebug() << str.section(";", 0, 0);
-	qDebug() << str.section(";", 1, 1);
-	qDebug() << str.section(";", 2, 2);
-	qDebug() << str.section(";", 3, 3);
-
-
-	//先在订单的tableWidget中插入一行
-	_table_Orders->setRowCount(_table_Orders->rowCount() + 1);
-	//qDebug()<<_table_Orders->rowCount();
-
-
-	//赋值新插入的_table_Orders的新行
-	//tableWidget一行是由多个QTableWidgetItem组成的，可以理解成一个单元格就是一个QTableWidgetItem
-	_table_Orders->setItem(_table_Orders->rowCount() - 1, 0, new QTableWidgetItem("未处理"));//每行第0列是订单状态
-
-	//给当前订单构造一个订单号，以后我可能会把这个订单号构造的代码写成一个订单号类
-	//订单号格式:2020061218344800002
-	QString strOrderNum = QString::number(_OrdersCount);//先获取一下当前的订单数，转化成字符串
-	QString preZero;                                    //因为要添加前置领，用preZero字符串变量存取一下
-	qDebug() << strOrderNum;
-	qDebug() << "size" << strOrderNum.length();
-	for (int i = 1; i <= 5 - strOrderNum.length(); i++)//我们设想当日的订单是00000-99999五位数，所以要根据当前订单数来循环添加订单号的前导零
-	{
-		preZero = preZero + '0';
+			_menuTypeNumHash[currentMenuTypeName] = currentMenuTypeNum;
+		}
 	}
-	//qDebug()<<preZero;
-	strOrderNum = preZero + strOrderNum;//把前导零和订单数拼接起来，构成订单后半部分
-	//qDebug()<<strOrderNum;
-	strOrderNum = QDateTime::currentDateTime().toString("yyyyMMddhhmmss") + strOrderNum;//获取一下当前的时间戳，将时间戳作为订单号前半部分拼接起来
-	qDebug() << strOrderNum;
-	_table_Orders->setItem(_table_Orders->rowCount() - 1, 1, new QTableWidgetItem(strOrderNum));//每行第1列是订单号
+	// 已有菜单种类数量对应表
+	for (auto currentMenuType : _menuTypeNumHash.keys()) {
+		Json currentMenuTypeJson;
+		currentMenuTypeJson["Name"] = currentMenuType.toStdString();
+		currentMenuTypeJson["Num"] = _menuTypeNumHash[currentMenuType];
 
-	//格式化处理发送过来的订单信息，使用QString的section函数，以";"为分割标志，将订单信息各部分拆解
-	QTableWidgetItem *itemTable = new QTableWidgetItem(str.section(";", 0, 0));//桌号
-	_table_Orders->setItem(_table_Orders->rowCount() - 1, 2, itemTable);       //每行第2列是桌号
-
-	QTableWidgetItem *itemPrice = new QTableWidgetItem(str.section(";", 1, 1));//订单总价格
-	_table_Orders->setItem(_table_Orders->rowCount() - 1, 3, itemPrice);       //每行第3列订单总价格
-
-	QTableWidgetItem *itemOders = new QTableWidgetItem(str.section(";", 2, 2));//订单内容
-	_table_Orders->setItem(_table_Orders->rowCount() - 1, 4, itemOders);       //每行第4列是订单内容
-
-	QTableWidgetItem *itemNote = new QTableWidgetItem(str.section(";", 3, 3));//订单备注
-	_table_Orders->setItem(_table_Orders->rowCount() - 1, 5, itemNote);       //每行第5列是订单备注
-
-	//更新订单统计信息
-	_OrdersCount++;  //总订单数加1
-	_OrdersNoCount++;//未处理订单数加1
-
-	//更新状态栏
-	ui->statusbar->showMessage("有新的订单！", 2000);
-	labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
-	labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
-
-
-	//Sound播放订单到达提醒声音
-	sound->play();
-}
-
-void ServerMainWindow::slotStatusReadyRead() {
-	// TODO 心跳包回复
-}
-
-void ServerMainWindow::slotSendMenuUpdateMessage() {
-	qDebug() << "slotSendMenuUpdateMessage";
-	// TODO 重构菜单更新消息发送
-
-	QTcpSocket *currentSocket;
-
-	for (int i = 0; i < _tcpClients.size(); i++)//遍历每一个客户端socket,发送信息
-	{
-		currentSocket = _tcpClients.at(i);
-		currentSocket->write(QString("[Menu Updated]").toUtf8());
+		menuTypeArr.push_back(currentMenuTypeJson);
 	}
+	sendDataJson["menuType"] = menuTypeArr;
 
-	qDebug() << "SendMenuUpdateMessage Done";
+	// JSON构造完成，发送数据
+	sendData = QString::fromStdString(sendDataJson.dump(2)).toUtf8();
+	tcpServer->sendMenu(target, sendData);
 }
+
+// TODO 此处重写为订单到达槽
+void ServerMainWindow::slotNewOrder(const QByteArray &menu) {
+}
+//void ServerMainWindow::slotReadyRead() {
+//	//因为是多客户端，我没写判断是哪个socket发送的消息，所以我这里将整个socketlist遍历一下来判断是那个socket发送的消息
+//	// TODO 你真是傻逼
+//	QTcpSocket *currentSocket = (QTcpSocket *) sender();
+//	QByteArray buff = currentSocket->readAll();
+//	qDebug() << "收到一条客户端消息" << currentSocket;
+//	qDebug() << buff;
+//
+//	// TODO 格式化处理订单消息 JSON
+//
+//	//订单消息格式为"A03;127.5;[老八麻辣烫:5];3333"
+//	QString str = QString::fromUtf8(buff);//先将订单消息转化为字符串
+//	//打印一下调信息，查看字符串内容及分区的信息
+//	qDebug() << str;
+//	qDebug() << str.section(";", 0, 0);
+//	qDebug() << str.section(";", 1, 1);
+//	qDebug() << str.section(";", 2, 2);
+//	qDebug() << str.section(";", 3, 3);
+//
+//
+//	//先在订单的tableWidget中插入一行
+//	_table_Orders->setRowCount(_table_Orders->rowCount() + 1);
+//	//qDebug()<<_table_Orders->rowCount();
+//
+//
+//	//赋值新插入的_table_Orders的新行
+//	//tableWidget一行是由多个QTableWidgetItem组成的，可以理解成一个单元格就是一个QTableWidgetItem
+//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 0, new QTableWidgetItem("未处理"));//每行第0列是订单状态
+//
+//	//给当前订单构造一个订单号，以后我可能会把这个订单号构造的代码写成一个订单号类
+//	//订单号格式:2020061218344800002
+//	QString strOrderNum = QString::number(_OrdersCount);//先获取一下当前的订单数，转化成字符串
+//	QString preZero;                                    //因为要添加前置领，用preZero字符串变量存取一下
+//	qDebug() << strOrderNum;
+//	qDebug() << "size" << strOrderNum.length();
+//	for (int i = 1; i <= 5 - strOrderNum.length(); i++)//我们设想当日的订单是00000-99999五位数，所以要根据当前订单数来循环添加订单号的前导零
+//	{
+//		preZero = preZero + '0';
+//	}
+//	//qDebug()<<preZero;
+//	strOrderNum = preZero + strOrderNum;//把前导零和订单数拼接起来，构成订单后半部分
+//	//qDebug()<<strOrderNum;
+//	strOrderNum = QDateTime::currentDateTime().toString("yyyyMMddhhmmss") + strOrderNum;//获取一下当前的时间戳，将时间戳作为订单号前半部分拼接起来
+//	qDebug() << strOrderNum;
+//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 1, new QTableWidgetItem(strOrderNum));//每行第1列是订单号
+//
+//	//格式化处理发送过来的订单信息，使用QString的section函数，以";"为分割标志，将订单信息各部分拆解
+//	QTableWidgetItem *itemTable = new QTableWidgetItem(str.section(";", 0, 0));//桌号
+//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 2, itemTable);       //每行第2列是桌号
+//
+//	QTableWidgetItem *itemPrice = new QTableWidgetItem(str.section(";", 1, 1));//订单总价格
+//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 3, itemPrice);       //每行第3列订单总价格
+//
+//	QTableWidgetItem *itemOders = new QTableWidgetItem(str.section(";", 2, 2));//订单内容
+//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 4, itemOders);       //每行第4列是订单内容
+//
+//	QTableWidgetItem *itemNote = new QTableWidgetItem(str.section(";", 3, 3));//订单备注
+//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 5, itemNote);       //每行第5列是订单备注
+//
+//	//更新订单统计信息
+//	_OrdersCount++;  //总订单数加1
+//	_OrdersNoCount++;//未处理订单数加1
+//
+//	//更新状态栏
+//	ui->statusbar->showMessage("有新的订单！", 2000);
+//	labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
+//	labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
+//
+//
+//	//Sound播放订单到达提醒声音
+//	sound->play();
+//}
+
+// TODO 此处重写为菜单更新消息发送
+//void ServerMainWindow::slotSendMenuUpdateMessage() {
+//	qDebug() << "slotSendMenuUpdateMessage";
+//	// TODO 重构菜单更新消息发送
+//
+//	QTcpSocket *currentSocket;
+//
+//	for (int i = 0; i < _tcpClients.size(); i++)//遍历每一个客户端socket,发送信息
+//	{
+//		currentSocket = _tcpClients.at(i);
+//		currentSocket->write(QString("[Menu Updated]").toUtf8());
+//	}
+//
+//	qDebug() << "SendMenuUpdateMessage Done";
+//}
 
 void ServerMainWindow::slotBtnEditClicked() {
 	if (_view_Menu->currentIndex().row() == -1)//检查是否选中某行
