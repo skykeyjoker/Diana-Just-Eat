@@ -14,6 +14,10 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 	// 读取配置文件
 	loadSetting();
 
+	/* 初始化界面 */
+	// 界面初始化统一放在函数内
+	initUI();
+
 	//新建Tcp客户端，连接Tcp服务端
 	client = new TcpClient(_tcpHost, _tcpPort, _tcpStatusPort);
 	bool tcpRet = client->establishConnect();
@@ -43,11 +47,6 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 		QDir::current().mkdir("Pic");
 	}
 	_picPath = QDir(QDir::currentPath() + "/Pic");
-
-
-	/* 初始化界面 */
-	// 界面初始化统一放在函数内
-	initUI();
 
 	/* 加载菜单 */
 	loadMenu();

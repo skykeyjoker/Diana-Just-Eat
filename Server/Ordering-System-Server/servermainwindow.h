@@ -69,6 +69,7 @@ private:
 	QLabel *labelOrdersCount;
 	QLabel *labelOrdersNoCount;
 	QLabel *labelTime;
+	QLabel *labelClientCount;
 	QTimer *timer;
 
 private:
@@ -137,7 +138,7 @@ public slots:
 	void slotBtnDelClicked();
 
 	void slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
-	void slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
+	void slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const QString dishPrice, const QString dishPhoto, bool photoUpdated);
 
 
 	void slotUpdateBtnClicked();

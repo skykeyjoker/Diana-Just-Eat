@@ -10,9 +10,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 
 	setWindowTitle("Diana Just Eat");
 
-
 	// 读取配置文件并连接数据库
-	// TODO 读取配置文件与链接数据库分离
 	loadSetting();// 读取配置文件
 
 	bool dbRet = connectDb();// 连接数据库
@@ -22,9 +20,7 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 	}
 
 
-	// 创建Tcp服务器，并监听
-	// TODO 启动TCP服务器分离
-	// TODO TCP服务器分置为类
+	// 创建Tcp服务器
 	bool tcpRet = startTcpServer();
 	if (!tcpRet) {
 		QMessageBox::critical(this, "Tcp服务端未建立", "未能建立Tcp服务端!");
@@ -37,13 +33,13 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 		QDir::current().mkdir("Pic");
 	_picPath = QDir(QDir::currentPath() + "/Pic");
 
-	// TODO 启动web服务器
+	// 启动web服务器
 	startWebServer();
 
 	//收到sendMenuUpdateSiganl后调用slotSendMenuUpdateMessage槽函数
 	//connect(this, &ServerMainWindow::sendMenuUpdateSignal, this, &ServerMainWindow::slotSendMenuUpdateMessage);
 
-	// TODO 分离初始化UI
+	// 分离初始化UI
 	initUI();
 }
 
@@ -85,20 +81,20 @@ bool ServerMainWindow::connectDb() {
 	} else
 		qDebug() << "数据库连接成功";
 
-	//设置QSqlModel
-	//menu表
+	// 设置QSqlModel
+	// menu表
 	_model = new QSqlTableModel;
 	_model->setTable("Menu");
 	_model->select();
 	_model->setEditStrategy(QSqlTableModel::OnManualSubmit);//设置提交策略
 
-	//menuType表
+	// menuType表
 	_menuTypeModel = new QSqlTableModel;
 	_menuTypeModel->setTable("MenuType");
 	_menuTypeModel->select();
 	_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
 
-	//遍历menuType表初始化_menuTypeList
+	// 遍历menuType表初始化_menuTypeList
 	for (int i = 0; i < _menuTypeModel->rowCount(); i++) {
 		QSqlRecord currentRecord = _menuTypeModel->record(i);
 		_menuTypeList.append(currentRecord.value(1).toString());
@@ -116,16 +112,10 @@ bool ServerMainWindow::startTcpServer() {
 	ret = tcpServer->establishServer();
 
 	// 菜单请求
-	//	void (TcpServer::*pSigQueryMenu)(QTcpSocket *) = &TcpServer::sigQueryMenu;
-	//	void (ServerMainWindow::*pSlotQueryMenu)(QTcpSocket *) = &ServerMainWindow::slotQueryMenu;
-	//	connect(tcpServer, pSigQueryMenu, this, pSlotQueryMenu);
 	connect(tcpServer, qOverload<QTcpSocket *>(&TcpServer::sigQueryMenu),
 			this, qOverload<QTcpSocket *>(&ServerMainWindow::slotQueryMenu));
 
 	// 新订单
-	//	void (TcpServer::*pSigNewOrder)(const QByteArray &) = &TcpServer::sigNewOrder;
-	//	void (ServerMainWindow::*pSlotNewOrder)(const QByteArray &) = &ServerMainWindow::slotNewOrder;
-	//	connect(tcpServer, pSigNewOrder, this, pSlotNewOrder);
 	connect(tcpServer, qOverload<const QByteArray &>(&TcpServer::sigNewOrder),
 			this, qOverload<const QByteArray &>(&ServerMainWindow::slotNewOrder));
 
@@ -206,6 +196,7 @@ void ServerMainWindow::initUI() {
 
 
 	// Init Tab of Menu
+	// TODO 添加菜品种类编辑
 	QVBoxLayout *layMenu = new QVBoxLayout(ui->tab_Menu);
 	_view_Menu = new QTableView;
 	layMenu->addWidget(_view_Menu);
@@ -320,17 +311,21 @@ void ServerMainWindow::initUI() {
 
 
 	// Status Bar
-	labelOrdersNoCount = new QLabel(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)), this);
-	labelOrdersCount = new QLabel(tr("总订单数：%1").arg(QString::number(_OrdersCount)), this);
+	labelOrdersNoCount = new QLabel(tr("未处理订单：%1").arg(QString::number(_OrdersNoCount)), this);
+	labelOrdersCount = new QLabel(tr("总订单：%1").arg(QString::number(_OrdersCount)), this);
 	labelTime = new QLabel(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"), this);
+	labelClientCount = new QLabel(tr("在线客户端：%1").arg(QString::number(tcpServer->getCurrentClientNum())), this);
 
 	ui->statusbar->addPermanentWidget(labelOrdersNoCount);
 	ui->statusbar->addPermanentWidget(labelOrdersCount);
+	ui->statusbar->addPermanentWidget(labelClientCount);
 	ui->statusbar->addPermanentWidget(labelTime);
+
 	//启动计时器
 	timer = new QTimer(this);
 	connect(timer, &QTimer::timeout, [=]() {
 		labelTime->setText(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+		labelClientCount->setText(tr("在线客户端：%1").arg(QString::number(tcpServer->getCurrentClientNum())));
 	});
 	timer->start(1000);
 
@@ -403,79 +398,67 @@ void ServerMainWindow::slotQueryMenu(QTcpSocket *target) {
 
 // TODO 此处重写为订单到达槽
 void ServerMainWindow::slotNewOrder(const QByteArray &menu) {
+	qDebug() << "收到新订单" << menu;
+	using Json = nlohmann::json;
+	Json menuJson;
+	menuJson = Json::parse(menu.data(), nullptr, false);
+
+	// 先在订单的tableWidget中插入一行
+	_table_Orders->setRowCount(_table_Orders->rowCount() + 1);
+
+	// 赋值新插入的_table_Orders的新行
+	_table_Orders->setItem(_table_Orders->rowCount() - 1, 0, new QTableWidgetItem("未处理"));//每行第0列是订单状态
+
+	// 订单号
+	QString strOrderNum = QString::fromStdString(menuJson["OrderNum"].get<std::string>());
+	_table_Orders->setItem(_table_Orders->rowCount() - 1, 1, new QTableWidgetItem(strOrderNum));//每行第1列是订单号
+
+	// 桌号
+	QString table = QString::fromStdString(menuJson["Table"].get<std::string>());
+	QTableWidgetItem *itemTable = new QTableWidgetItem(table);
+	_table_Orders->setItem(_table_Orders->rowCount() - 1, 2, itemTable);//每行第2列是桌号
+
+	// 订单总价格
+	QString price = QString::number(menuJson["Price"].get<double>());
+	QTableWidgetItem *itemPrice = new QTableWidgetItem(price);          //订单总价格
+	_table_Orders->setItem(_table_Orders->rowCount() - 1, 3, itemPrice);//每行第3列订单总价格
+
+	// 订单内容
+	QString orderStr;
+	Json cartArr = menuJson["Carts"];
+	// 构造订单内容
+	for (int i = 0; i < cartArr.size(); ++i) {
+		QString currentCartName = QString::fromStdString(cartArr[i]["Name"].get<std::string>());
+		QString currentCartNum = QString::number(cartArr[i]["Num"].get<int>());
+		orderStr.push_back('[');
+		orderStr.push_back(currentCartName);
+		orderStr.push_back(':');
+		orderStr.push_back(currentCartNum);
+		orderStr.push_back("]");
+		if (i != cartArr.size() - 1)
+			orderStr.push_back(',');
+	}
+	QTableWidgetItem *itemOrders = new QTableWidgetItem(orderStr);       // 订单内容
+	_table_Orders->setItem(_table_Orders->rowCount() - 1, 4, itemOrders);//每行第4列是订单内容
+
+	// 订单备注
+	QString note = QString::fromStdString(menuJson["Note"].get<std::string>());
+	QTableWidgetItem *itemNote = new QTableWidgetItem(note);           //订单备注
+	_table_Orders->setItem(_table_Orders->rowCount() - 1, 5, itemNote);//每行第5列是订单备注
+
+	//更新订单统计信息
+	_OrdersCount++;  //总订单数加1
+	_OrdersNoCount++;//未处理订单数加1
+
+	//更新状态栏
+	ui->statusbar->showMessage("有新的订单！", 2000);
+	labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
+	labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
+
+
+	//Sound播放订单到达提醒声音
+	sound->play();
 }
-//void ServerMainWindow::slotReadyRead() {
-//	//因为是多客户端，我没写判断是哪个socket发送的消息，所以我这里将整个socketlist遍历一下来判断是那个socket发送的消息
-//	// TODO 你真是傻逼
-//	QTcpSocket *currentSocket = (QTcpSocket *) sender();
-//	QByteArray buff = currentSocket->readAll();
-//	qDebug() << "收到一条客户端消息" << currentSocket;
-//	qDebug() << buff;
-//
-//	// TODO 格式化处理订单消息 JSON
-//
-//	//订单消息格式为"A03;127.5;[老八麻辣烫:5];3333"
-//	QString str = QString::fromUtf8(buff);//先将订单消息转化为字符串
-//	//打印一下调信息，查看字符串内容及分区的信息
-//	qDebug() << str;
-//	qDebug() << str.section(";", 0, 0);
-//	qDebug() << str.section(";", 1, 1);
-//	qDebug() << str.section(";", 2, 2);
-//	qDebug() << str.section(";", 3, 3);
-//
-//
-//	//先在订单的tableWidget中插入一行
-//	_table_Orders->setRowCount(_table_Orders->rowCount() + 1);
-//	//qDebug()<<_table_Orders->rowCount();
-//
-//
-//	//赋值新插入的_table_Orders的新行
-//	//tableWidget一行是由多个QTableWidgetItem组成的，可以理解成一个单元格就是一个QTableWidgetItem
-//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 0, new QTableWidgetItem("未处理"));//每行第0列是订单状态
-//
-//	//给当前订单构造一个订单号，以后我可能会把这个订单号构造的代码写成一个订单号类
-//	//订单号格式:2020061218344800002
-//	QString strOrderNum = QString::number(_OrdersCount);//先获取一下当前的订单数，转化成字符串
-//	QString preZero;                                    //因为要添加前置领，用preZero字符串变量存取一下
-//	qDebug() << strOrderNum;
-//	qDebug() << "size" << strOrderNum.length();
-//	for (int i = 1; i <= 5 - strOrderNum.length(); i++)//我们设想当日的订单是00000-99999五位数，所以要根据当前订单数来循环添加订单号的前导零
-//	{
-//		preZero = preZero + '0';
-//	}
-//	//qDebug()<<preZero;
-//	strOrderNum = preZero + strOrderNum;//把前导零和订单数拼接起来，构成订单后半部分
-//	//qDebug()<<strOrderNum;
-//	strOrderNum = QDateTime::currentDateTime().toString("yyyyMMddhhmmss") + strOrderNum;//获取一下当前的时间戳，将时间戳作为订单号前半部分拼接起来
-//	qDebug() << strOrderNum;
-//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 1, new QTableWidgetItem(strOrderNum));//每行第1列是订单号
-//
-//	//格式化处理发送过来的订单信息，使用QString的section函数，以";"为分割标志，将订单信息各部分拆解
-//	QTableWidgetItem *itemTable = new QTableWidgetItem(str.section(";", 0, 0));//桌号
-//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 2, itemTable);       //每行第2列是桌号
-//
-//	QTableWidgetItem *itemPrice = new QTableWidgetItem(str.section(";", 1, 1));//订单总价格
-//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 3, itemPrice);       //每行第3列订单总价格
-//
-//	QTableWidgetItem *itemOders = new QTableWidgetItem(str.section(";", 2, 2));//订单内容
-//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 4, itemOders);       //每行第4列是订单内容
-//
-//	QTableWidgetItem *itemNote = new QTableWidgetItem(str.section(";", 3, 3));//订单备注
-//	_table_Orders->setItem(_table_Orders->rowCount() - 1, 5, itemNote);       //每行第5列是订单备注
-//
-//	//更新订单统计信息
-//	_OrdersCount++;  //总订单数加1
-//	_OrdersNoCount++;//未处理订单数加1
-//
-//	//更新状态栏
-//	ui->statusbar->showMessage("有新的订单！", 2000);
-//	labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
-//	labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
-//
-//
-//	//Sound播放订单到达提醒声音
-//	sound->play();
-//}
 
 // TODO 此处重写为菜单更新消息发送
 //void ServerMainWindow::slotSendMenuUpdateMessage() {
@@ -509,7 +492,8 @@ void ServerMainWindow::slotBtnEditClicked() {
 	QString dishType = record.value(2).toString();
 	QString dishInfo = record.value(3).toString();
 	QString dishPrice = record.value(4).toString();
-	QString dishPhoto = record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/") + 1, -1);
+	//QString dishPhoto = record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/") + 1, -1);
+	QString dishPhoto = record.value(5).toString();
 	qDebug() << "dishPhoto:" << dishPhoto;
 
 	// TODO 此处更新菜单
@@ -517,14 +501,16 @@ void ServerMainWindow::slotBtnEditClicked() {
 	//赋值一下oldDishType
 	oldDishType = dishType;
 
-	dlg->setValue(dishId, dishName, dishType, dishInfo, dishPrice, dishPhoto, "127.0.0.1");//传入值
+	dlg->setValue(dishId, dishName, dishType, dishInfo, dishPrice, dishPhoto);//传入值
 	dlg->show();
 
 
 	//利用函数指针调用DialogEditRecord带参数的signalUpdate信号，和ServerMainWindow带参数的slotUpdate槽
-	void (DialogEditRecord::*pSignalUpdate)(int, QString, QString, QString, QString, QString) = &DialogEditRecord::signalUpdate;
-	void (ServerMainWindow::*pSlotUpdate)(int, QString, QString, QString, QString, QString) = &ServerMainWindow::slotUpdate;
-	connect(dlg, pSignalUpdate, this, pSlotUpdate);
+	//	void (DialogEditRecord::*pSignalUpdate)(int, QString, QString, QString, QString, QString) = &DialogEditRecord::signalUpdate;
+	//	void (ServerMainWindow::*pSlotUpdate)(int, QString, QString, QString, QString, QString) = &ServerMainWindow::slotUpdate;
+	//	connect(dlg, pSignalUpdate, this, pSlotUpdate);
+	connect(dlg, qOverload<int, const QString, const QString, const QString, const QString, const QString, bool>(&DialogEditRecord::signalUpdate),
+			this, qOverload<int, const QString, const QString, const QString, const QString, const QString, bool>(&ServerMainWindow::slotUpdate));
 }
 
 void ServerMainWindow::slotBtnAddClicked() {
@@ -601,6 +587,8 @@ void ServerMainWindow::slotBtnDelClicked() {
 
 
 		//维护menuType表
+		// TODO 有menuType的model
+
 		int index = _menuTypeList.indexOf(menuType);
 
 		QSqlQuery query(db);
@@ -657,6 +645,7 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
 
 
 	//维护menuType表
+	// TODO 有menuType的model
 	int index = _menuTypeList.indexOf(dishType);
 	//QSqlRecord currentRecord;
 
@@ -702,10 +691,9 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
 	}
 }
 
-void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto) {
+void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const QString dishPrice, const QString dishPhoto, bool photoUpdate) {
 	qDebug() << "slotUpdate";
 	// TODO 重构菜单更新
-	//qDebug()<<dishId<<" "<<dishName<<" "<<dishType<<" "<<dishInfo<<" "<<dishPrice<<" "<<dishPhoto;
 	//将更新信息插入record
 	QSqlRecord record = _model->record(_view_Menu->currentIndex().row());
 	record.setValue(1, dishName);
@@ -714,6 +702,9 @@ void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType
 	record.setValue(4, dishPrice.toDouble());
 
 	// TODO 判断图片是否更新
+	if (photoUpdate) {
+		record.setValue(5, dishPhoto);
+	}
 	//	if ((_picHost + "/upload/" + dishPhoto) != record.value(5))//检测图片是否更新
 	//	{
 	//		record.setValue(5, _picHost + "/upload/" + dishPhoto);
@@ -733,11 +724,13 @@ void ServerMainWindow::slotUpdate(int dishId, QString dishName, QString dishType
 	_model->submitAll();
 
 
+	// TODO 此处是真正向客户端发送菜单更新消息的地方
 	//给客户端发送更新消息
 	emit sendMenuUpdateSignal();
 
 
 	//维护menuType表
+	// TODO 有menuType的model
 	if (oldDishType != dishType)//如果菜品种类改变
 	{
 		qDebug() << "更换类型";
@@ -808,61 +801,43 @@ void ServerMainWindow::closeEvent(QCloseEvent *event) {
 		event->ignore();
 }
 
+// 配置信息保存
 void ServerMainWindow::slotUpdateBtnClicked() {
-	// TODO 重构配置文件保存
 	if (le_TcpHost->text().isEmpty() || le_TcpPort->text().isEmpty() || le_TcpStatusPort->text().isEmpty() || le_ClearShot->text().isEmpty()) {
 		QMessageBox::critical(this, "错误", "关键信息不完整！");
 		return;
 	}
 
-	//更新信息
-	//_dbHost = le_MySqlHost->text();
-	//_dbName = le_MySqlName->text();
-	//_dbUser = le_MySqlUser->text();
-	//_dbPasswd = le_MySqlPasswd->text();
-	//_dbPort = le_MySqlPort->text().toInt();
-	//_picHost = le_HttpHost->text();
+	// 更新信息
 	_tcpHost = le_TcpHost->text();
 	_tcpPort = le_TcpPort->text().toInt();
 	_tcpStatusPort = le_TcpStatusPort->text().toInt();
 	_clearShot = le_ClearShot->text().toInt();
 
-	// TODO 保存配置
-	//	WriteJson jsonConfig(_dbHost, _dbName, _dbUser, _dbPasswd, _dbPort, _picHost, _tcpHost, _tcpPort, _clearShot);//写json配置文件
-	//	if (!jsonConfig.writeToFile()) {
-	//		QMessageBox::critical(this, "错误", "无法更新配置！");
-	//	}
+	// 保存配置
+	using Json = nlohmann::json;
+	Json settingJson;
+	settingJson["tcpHost"] = _tcpHost.toStdString();
+	settingJson["tcpPort"] = _tcpPort;
+	settingJson["tcpStatusPort"] = _tcpStatusPort;
+	settingJson["clearShot"] = _clearShot;
 
-	/* 申请一个临时数据库，检测数据库配置信息和保存tcp信息 */
-	//	QSqlDatabase tmpdb = QSqlDatabase::addDatabase("QMYSQL");
-	//	tmpdb.setHostName(_dbHost);
-	//	tmpdb.setPort(_dbPort);
-	//	tmpdb.setUserName(_dbUser);
-	//	tmpdb.setDatabaseName(_dbName);
-	//	tmpdb.setPassword(_dbPasswd);
-
-	//	if (tmpdb.open()) {
-	//		QMessageBox::information(this, "服务器配置信息更新成功！", "服务器配置信息更新成功，请重启服务端程序！");
-	//
-	//		exit(0);
-	//	} else {
-	//		QMessageBox::critical(this, "无法连接MySql数据库", "无法连接MySql数据库，请检查相关信息！");
-	//		qDebug() << tmpdb.lastError().text();
-	//	}
+	QFile settingFile("config.json");
+	if (settingFile.open(QFile::WriteOnly)) {
+		QByteArray settingData = QString::fromStdString(settingJson.dump(2)).toUtf8();
+		settingFile.write(settingData);
+		QMessageBox::information(this, "保存成功", "已成功保存配置！");
+	} else {
+		qDebug() << "打开配置文件失败";
+		QMessageBox::critical(this, "保存配置失败", "保存配置失败，无法打开配置文件！");
+	}
 }
 
 void ServerMainWindow::slotRevBtnClicked() {
-	// TODO 重构恢复设置
-	//	le_MySqlHost->setText(_dbHost);
-	//	le_MySqlPort->setText(QString::number(_dbPort));
-	//	le_MySqlName->setText(_dbName);
-	//	le_MySqlUser->setText(_dbUser);
-	//	le_MySqlPasswd->setText(_dbPasswd);
-
+	// 重构恢复设置
 	le_TcpHost->setText(_tcpHost);
 	le_TcpPort->setText(QString::number(_tcpPort));
 	le_TcpStatusPort->setText(QString::number(_tcpStatusPort));
-
 	le_ClearShot->setText(QString::number(_clearShot));
 }
 
@@ -886,12 +861,12 @@ void ServerMainWindow::slotBtnReHandleClicked() {
 	}
 
 	int currentRow = _table_Orders->currentRow();//获取一下当前行
-	int ret = QMessageBox::question(this, "请求确认", tr("您确认要重新处理该订单吗？\n当前订单为:\n订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow, 1)->text()).arg(_table_Orders->item(currentRow, 2)->text()));
+	int ret = QMessageBox::question(this, "请求确认", tr("您确认要重新处理该订单吗？\n该订单的订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow, 1)->text()).arg(_table_Orders->item(currentRow, 2)->text()));
 	if (ret == QMessageBox::Yes) {
 		_table_Orders->setItem(currentRow, 0, new QTableWidgetItem("未处理"));
 
 		//更新订单统计信息
-		_OrdersNoCount++;//未处理订单数减1
+		_OrdersNoCount++;//未处理订单数加1
 
 		//更新状态栏
 		labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
@@ -923,7 +898,7 @@ void ServerMainWindow::slotBtnHandleClicked() {
 	/* 暴力做法，现在就先存一下该栏信息,后面遍历匹配删除 */
 	QTableWidgetItem *currentItemOrderNum = _table_Orders->item(currentRow, 1);
 
-	int ret = QMessageBox::question(this, "请求确认", tr("您确认要处理该订单吗？\n当前订单为:\n订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow, 1)->text()).arg(_table_Orders->item(currentRow, 2)->text()));
+	int ret = QMessageBox::question(this, "请求确认", tr("您确认要处理该订单吗？\n该订单的订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow, 1)->text()).arg(_table_Orders->item(currentRow, 2)->text()));
 	if (ret == QMessageBox::Yes) {
 		_table_Orders->setItem(currentRow, 0, new QTableWidgetItem(QIcon(":/Res/ok.ico"), "订单已处理"));//修改订单状态
 
