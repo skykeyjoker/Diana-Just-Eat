@@ -7,7 +7,7 @@ TcpClient::TcpClient(const QString &host, int port, int statusPort, QObject *par
 	  QObject(parent) {
 }
 
-void TcpClient::establishConnect() {
+bool TcpClient::establishConnect() {
 	_socket = new QTcpSocket;
 	_statusSocket = new QTcpSocket;
 	connect(_socket, &QTcpSocket::readyRead, this, &TcpClient::slotReadyRead);
@@ -21,8 +21,13 @@ void TcpClient::establishConnect() {
 	_socket->connectToHost(_host, _port);
 	_statusSocket->connectToHost(_host, _statusPort);
 
-	//发送信号
-	emit signalEstablishConnect();
+	if (!_socket->waitForConnected()) {
+		return false;
+	}
+	if (!_statusSocket->waitForConnected()) {
+		return false;
+	}
+	return true;
 }
 
 void TcpClient::slotStatusReadyRead() {

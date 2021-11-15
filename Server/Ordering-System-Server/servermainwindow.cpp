@@ -7,7 +7,8 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 	: QMainWindow(parent),
 	  ui(new Ui::ServerMainWindow) {
 	ui->setupUi(this);
-	setWindowTitle("自主点餐系统服务端");
+
+	setWindowTitle("Diana Just Eat");
 
 
 	// 读取配置文件并连接数据库
@@ -115,14 +116,18 @@ bool ServerMainWindow::startTcpServer() {
 	ret = tcpServer->establishServer();
 
 	// 菜单请求
-	void (TcpServer::*pSigQueryMenu)(QTcpSocket *) = &TcpServer::sigQueryMenu;
-	void (ServerMainWindow::*pSlotQueryMenu)(QTcpSocket *) = &ServerMainWindow::slotQueryMenu;
-	connect(tcpServer, pSigQueryMenu, this, pSlotQueryMenu);
+	//	void (TcpServer::*pSigQueryMenu)(QTcpSocket *) = &TcpServer::sigQueryMenu;
+	//	void (ServerMainWindow::*pSlotQueryMenu)(QTcpSocket *) = &ServerMainWindow::slotQueryMenu;
+	//	connect(tcpServer, pSigQueryMenu, this, pSlotQueryMenu);
+	connect(tcpServer, qOverload<QTcpSocket *>(&TcpServer::sigQueryMenu),
+			this, qOverload<QTcpSocket *>(&ServerMainWindow::slotQueryMenu));
 
 	// 新订单
-	void (TcpServer::*pSigNewOrder)(const QByteArray &) = &TcpServer::sigNewOrder;
-	void (ServerMainWindow::*pSlotNewOrder)(const QByteArray &) = &ServerMainWindow::slotNewOrder;
-	connect(tcpServer, pSigNewOrder, this, pSlotNewOrder);
+	//	void (TcpServer::*pSigNewOrder)(const QByteArray &) = &TcpServer::sigNewOrder;
+	//	void (ServerMainWindow::*pSlotNewOrder)(const QByteArray &) = &ServerMainWindow::slotNewOrder;
+	//	connect(tcpServer, pSigNewOrder, this, pSlotNewOrder);
+	connect(tcpServer, qOverload<const QByteArray &>(&TcpServer::sigNewOrder),
+			this, qOverload<const QByteArray &>(&ServerMainWindow::slotNewOrder));
 
 	// TODO 菜单更新
 
@@ -506,6 +511,9 @@ void ServerMainWindow::slotBtnEditClicked() {
 	QString dishPrice = record.value(4).toString();
 	QString dishPhoto = record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/") + 1, -1);
 	qDebug() << "dishPhoto:" << dishPhoto;
+
+	// TODO 此处更新菜单
+
 	//赋值一下oldDishType
 	oldDishType = dishType;
 
@@ -525,6 +533,8 @@ void ServerMainWindow::slotBtnAddClicked() {
 	dlg->setUrl("127.0.0.1");
 	dlg->show();
 
+	// TODO 此处更新菜单
+
 	//利用函数指针调用DialogAddRecord带参数的signalSubmit信号，和ServerMainWindow带参数的slotSubmit槽
 	void (DialogAddRecord::*pSignalSubmit)(QString, QString, QString, QString, QString) = &DialogAddRecord::signalSubmit;
 	void (ServerMainWindow::*pSlotSubmit)(QString, QString, QString, QString, QString) = &ServerMainWindow::slotSubmit;
@@ -536,6 +546,8 @@ void ServerMainWindow::slotBtnDelClicked() {
 		QMessageBox::critical(this, "删除失败", "未选择任何行");
 		return;
 	}
+
+	// TODO 此处更新菜单
 
 	int ret = QMessageBox::question(this, "确认删除", "你确认要删除这个菜品吗？");
 	if (ret == QMessageBox::Yes) {

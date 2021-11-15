@@ -14,8 +14,8 @@ class TcpClient : public QObject {
 public:
 	explicit TcpClient(const QString &host, int port, int statusPort, QObject *parent = nullptr);
 
-public slots:
-	void establishConnect();
+public:
+	bool establishConnect();
 
 public:
 	// 对外进提供封装好的订单信息发送、回复服务器、请求订单方法
@@ -47,8 +47,6 @@ private slots:
 	void slotHeartBad();        // 心跳包掉线处理
 
 signals:
-	void signalEstablishConnect();
-
 	void signalQueryMenu(const QByteArray data);
 
 	void signalUpdateMenu(const QByteArray data);

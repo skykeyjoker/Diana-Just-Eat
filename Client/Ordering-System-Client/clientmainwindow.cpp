@@ -6,25 +6,30 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 	: QMainWindow(parent),
 	  ui(new Ui::ClientMainWindow) {
 	// 初始化窗口信息
-	this->setWindowIcon(QIcon(":/Res/icon.png"));
-	this->setWindowTitle("自主订餐系统客户端");
-
 	ui->setupUi(this);
+
+	this->setWindowIcon(QIcon(":/Res/icon.png"));
+	this->setWindowTitle("Diana Just Eat");
 
 	// 读取配置文件
 	loadSetting();
 
 	//新建Tcp客户端，连接Tcp服务端
 	client = new TcpClient(_tcpHost, _tcpPort, _tcpStatusPort);
-	client->establishConnect();
+	bool tcpRet = client->establishConnect();
+	if (!tcpRet) {
+		qDebug() << "TCP链接失败";
+		QMessageBox::critical(this, "启动失败", "未能成功连接服务器！");
+		exit(1);
+	}
 
-	void (TcpClient::*pSignalQueryMenu)(const QByteArray) = &TcpClient::signalQueryMenu;
-	void (ClientMainWindow::*pSlotQueryMenu)(const QByteArray) = &ClientMainWindow::slotQueryMenu;
-	connect(client, pSignalQueryMenu, this, pSlotQueryMenu);// 菜单请求返回
+	// 菜单请求返回
+	connect(client, qOverload<const QByteArray>(&TcpClient::signalQueryMenu),
+			this, qOverload<const QByteArray>(&ClientMainWindow::slotQueryMenu));
 
-	void (TcpClient::*pSignalUpdateMenu)(const QByteArray) = &TcpClient::signalUpdateMenu;
-	void (ClientMainWindow::*pSlotUpdateMenu)(const QByteArray) = &ClientMainWindow::slotUpdateMenu;
-	connect(client, pSignalUpdateMenu, this, pSlotUpdateMenu);// 菜单更新
+	// 菜单更新
+	connect(client, qOverload<const QByteArray>(&TcpClient::signalUpdateMenu),
+			this, qOverload<const QByteArray>(&ClientMainWindow::slotUpdateMenu));
 
 	connect(client, &TcpClient::signalDisconnectedToServer, this, &ClientMainWindow::slotDisconnectedToServer);// 断连
 
@@ -290,10 +295,11 @@ void ClientMainWindow::initUI() {
 	timer->start(1000);
 
 	//关联菜单列表选中信号与槽
-	void (QListWidget::*pSignalItemClicked)(QListWidgetItem *) = &QListWidget::itemClicked;
-	void (ClientMainWindow::*pSlotItemClicked)(QListWidgetItem *) = &ClientMainWindow::slotItemClicked;
-	connect(_menuList, pSignalItemClicked, this, pSlotItemClicked);
-
+	//	void (QListWidget::*pSignalItemClicked)(QListWidgetItem *) = &QListWidget::itemClicked;
+	//	void (ClientMainWindow::*pSlotItemClicked)(QListWidgetItem *) = &ClientMainWindow::slotItemClicked;
+	//	connect(_menuList, pSignalItemClicked, this, pSlotItemClicked);
+	connect(_menuList, qOverload<QListWidgetItem *>(&QListWidget::itemClicked),
+			this, qOverload<QListWidgetItem *>(&ClientMainWindow::slotItemClicked));
 
 	//关联添加购物车按钮
 	connect(btn_addToCart, &QPushButton::clicked, this, &ClientMainWindow::slotAddtoCart);
@@ -539,9 +545,8 @@ void ClientMainWindow::slotCartBtnClicked() {
 	dlg->show();
 
 	// 连接购物车查看界面的信号
-	void (DialogCartView::*pSignalCartChanged)(QList<CartItem>) = &DialogCartView::signalCartChanged;
-	void (ClientMainWindow::*pSlotCartChanged)(QList<CartItem>) = &ClientMainWindow::slotCartChanged;
-	connect(dlg, pSignalCartChanged, this, pSlotCartChanged);
+	connect(dlg, qOverload<QList<CartItem>>(&DialogCartView::signalCartChanged),
+			this, qOverload<QList<CartItem>>(&ClientMainWindow::slotCartChanged));
 	connect(dlg, &DialogCartView::signalCartCleaned, this, &ClientMainWindow::slotCartCleaned);
 	connect(dlg, &DialogCartView::signalCartCheckOut, this, &ClientMainWindow::slotCartCheckOut);
 }
@@ -596,9 +601,11 @@ void ClientMainWindow::slotCartCheckOut() {
 	DialogCheckOut *dlg = new DialogCheckOut(_cartLists, _cartNumCount, _cartPriceCount);
 	dlg->show();
 
-	void (DialogCheckOut::*pSignalReadyCheckOut)(QString) = &DialogCheckOut::signalReadyCheckOut;
-	void (ClientMainWindow::*pSlotReadyCheckOut)(const QString &) = &ClientMainWindow::slotReadyCheckOut;
-	connect(dlg, pSignalReadyCheckOut, this, pSlotReadyCheckOut);
+	//	void (DialogCheckOut::*pSignalReadyCheckOut)(QString) = &DialogCheckOut::signalReadyCheckOut;
+	//	void (ClientMainWindow::*pSlotReadyCheckOut)(const QString &) = &ClientMainWindow::slotReadyCheckOut;
+	//	connect(dlg, pSignalReadyCheckOut, this, pSlotReadyCheckOut);
+	connect(dlg, qOverload<QString>(&DialogCheckOut::signalReadyCheckOut),
+			this, qOverload<const QString &>(&ClientMainWindow::slotReadyCheckOut));
 }
 
 void ClientMainWindow::slotReadyCheckOut(const QString &note)//结帐，发送socket信息

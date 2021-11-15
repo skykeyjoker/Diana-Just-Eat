@@ -64,8 +64,8 @@ void TcpServer::slotNewStatusConnection() {
 	sendJsonData["Msg"] = "OK";
 	sendData = QString::fromStdString(sendJsonData.dump(2)).toUtf8();
 	currentSocket->write(sendData);
-	//currentSocket->flush();
-	//currentSocket->waitForBytesWritten();
+	currentSocket->flush();
+	currentSocket->waitForBytesWritten();
 
 	connect(currentSocket, &QTcpSocket::readyRead, this, &TcpServer::slotStatusReadyRead);
 	connect(currentSocket, &QTcpSocket::disconnected, [=, this]() {
@@ -120,8 +120,8 @@ void TcpServer::slotStatusReadyRead() {
 			sendJsonData["Msg"] = "HEART_BACK";
 			sendData = QString::fromStdString(sendJsonData.dump(2)).toUtf8();
 			currentSocket->write(sendData);
-			//currentSocket->flush();
-			//currentSocket->waitForBytesWritten();
+			currentSocket->flush();
+			currentSocket->waitForBytesWritten();
 		}
 	}
 }
