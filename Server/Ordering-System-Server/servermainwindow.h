@@ -30,6 +30,7 @@
 #include <QVBoxLayout>
 
 #include "Dish.h"
+#include "Operation.h"
 #include "SimpleWebServer.h"
 #include "TcpServer.h"
 #include "dialogaddrecord.h"
@@ -64,6 +65,9 @@ private:
 	// UI
 	void initUI();
 
+	// Menu
+	void generateUpdatedMenu();
+
 private:
 	// StatusBar
 	QLabel *labelOrdersCount;
@@ -84,8 +88,9 @@ private:
 
 	QList<QString> _menuTypeList;// 菜品种类列表
 	QString oldDishType;
-	QVector<Dish> _dishes;               // 菜品列表
-	QHash<QString, int> _menuTypeNumHash;// 菜品种类与数量键值对
+	QVector<Dish> _dishes;                         // 菜品列表
+	QHash<QString, int> _menuTypeNumHash;          // 菜品种类与数量键值对
+	QVector<DianaJustEat::Operation *> _operations;// 操作列表
 
 private:
 	// Config Tab
@@ -138,7 +143,7 @@ public slots:
 	void slotBtnDelClicked();
 
 	void slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
-	void slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const QString dishPrice, const QString dishPhoto, bool photoUpdated);
+	void slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const double dishPrice, const QString dishPhoto, bool photoUpdated);
 
 
 	void slotUpdateBtnClicked();
@@ -147,13 +152,13 @@ public slots:
 
 	void closeEvent(QCloseEvent *);//重写退出事件
 
-public:
+public slots:
 	// 菜单相关信号槽
 	void slotQueryMenu(QTcpSocket *target);   // 客户端请求菜单
 	void slotNewOrder(const QByteArray &menu);// 客户端发送新订单
 
 signals:
-	void sendMenuUpdateSignal();//更新客户端菜单信号
+	void sigMenuUpdate(const QByteArray &menu);//更新客户端菜单信号
 
 private:
 	Ui::ServerMainWindow *ui;

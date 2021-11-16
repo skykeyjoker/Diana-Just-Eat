@@ -90,7 +90,7 @@ DialogEditRecord::DialogEditRecord(QWidget *parent) : QDialog(parent) {
 	connect(btnSubmit, &QPushButton::clicked, this, &DialogEditRecord::slotBtnSubmitClicked);
 }
 
-void DialogEditRecord::setValue(int dishId, const QString &dishName, const QString &dishType, const QString &dishInfo, const QString &dishPrice, const QString &dishPhoto) {
+void DialogEditRecord::setValue(int dishId, const QString &dishName, const QString &dishType, const QString &dishInfo, const double dishPrice, const QString &dishPhoto) {
 	_dishId = dishId;
 	_dishName = dishName;
 	_dishType = dishType;
@@ -102,7 +102,7 @@ void DialogEditRecord::setValue(int dishId, const QString &dishName, const QStri
 	le_Name->setText(_dishName);
 	le_Type->setText(_dishType);
 	le_Info->setText(_dishInfo);
-	le_Price->setText(_dishPrice);
+	le_Price->setText(QString::number(_dishPrice));
 
 	//显示图片图片
 	brower->setPixmap(QPixmap(QDir::currentPath() + "/Pic/" + dishPhoto));
@@ -124,12 +124,12 @@ void DialogEditRecord::slotBtnSubmitClicked() {
 	_dishName = le_Name->text();
 	_dishType = le_Type->text();
 	_dishInfo = le_Info->toPlainText();
-	_dishPrice = le_Price->text();
+	_dishPrice = le_Price->text().toDouble();
 
 	// 更新图片
 	if (!le_Photo->text().isEmpty())//如果图片路径编辑框不为空，那就是选择了新的图片
 	{
-		QString newPhotoFileName = le_Photo->text().mid(le_Photo->text().lastIndexOf("/"), -1);
+		QString newPhotoFileName = le_Photo->text().mid(le_Photo->text().lastIndexOf("/") + 1, -1);
 
 		// 删除旧图片
 		QDir::current().remove("/Pic/" + _dishPhoto);

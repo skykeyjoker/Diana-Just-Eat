@@ -50,6 +50,8 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 
 	/* 加载菜单 */
 	loadMenu();
+
+	qDebug() << "Load finished.";
 }
 
 ClientMainWindow::~ClientMainWindow() {

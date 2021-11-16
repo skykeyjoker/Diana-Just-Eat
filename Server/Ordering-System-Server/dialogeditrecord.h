@@ -32,7 +32,7 @@ public:
 
 	//void setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
 	//void setValue(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto, QString url);
-	void setValue(int dishId, const QString &dishName, const QString &dishType, const QString &dishInfo, const QString &dishPrice, const QString &dishPhoto);
+	void setValue(int dishId, const QString &dishName, const QString &dishType, const QString &dishInfo, const double dishPrice, const QString &dishPhoto);
 
 private:
 	// dish info
@@ -40,7 +40,7 @@ private:
 	QString _dishName;
 	QString _dishType;
 	QString _dishInfo;
-	QString _dishPrice;
+	double _dishPrice;
 	//QByteArray _dishPhoto;
 	QString _dishPhoto;
 
@@ -63,7 +63,7 @@ public slots:
 	void closeEvent(QCloseEvent *);//重写退出事件
 signals:
 	//void signalUpdate(int dishId, QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
-	void signalUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const QString dishPrice, const QString dishPhoto, bool photoUpdated);
+	void signalUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const double dishPrice, const QString dishPhoto, bool photoUpdated);
 };
 
 #endif// DIALOGEDITRECORD_H
