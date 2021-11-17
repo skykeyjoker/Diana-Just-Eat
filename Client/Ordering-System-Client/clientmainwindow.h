@@ -44,7 +44,8 @@ class ClientMainWindow : public QMainWindow {
 	Q_OBJECT
 
 private:
-	void loadSetting();// 读取配置文件
+	void loadSetting();    // 读取配置文件
+	bool connectToServer();// 连接到服务端
 
 private:
 	//菜单显示

@@ -5,7 +5,9 @@
 #include <QObject>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QThread>
 
+#include "StatusServer.h"
 #include "json.hpp"
 
 class TcpServer : public QObject {
@@ -26,12 +28,12 @@ private slots:
 	void slotNewConnection();// 订单菜单信道链接
 	void slotReadyRead();
 
-	void slotNewStatusConnection();// 状态信道链接
-	void slotStatusReadyRead();
-
 signals:
 	void sigQueryMenu(QTcpSocket *target);    // 客户端请求菜单
 	void sigNewOrder(const QByteArray &order);// 客户端发来新菜单
+
+signals:
+	void sigStatusServerError();
 
 private:
 	// 订单菜单信道
@@ -39,8 +41,8 @@ private:
 	QList<QTcpSocket *> _tcpClients;
 
 	// 状态信道
-	QTcpServer *_tcpStatusServer;
-	QList<QTcpSocket *> _tcpStatusClients;
+	StatusServer *_tcpStatusServer;
+	QThread *statusThread;
 
 private:
 	QString m_tcpHost;

@@ -7,29 +7,34 @@ TcpServer::TcpServer(const QString &tcpHost, const int tcpPort, const int tcpSta
 	  QObject(parent) {
 
 	_tcpServer = new QTcpServer;
-	_tcpStatusServer = new QTcpServer;
+
+	statusThread = new QThread;
+	_tcpStatusServer = new StatusServer(tcpStatusPort);
+	_tcpStatusServer->moveToThread(statusThread);
+
+	qDebug() << "Tcp Server Main Thread" << this->thread();
+	connect(statusThread, &QThread::started, _tcpStatusServer, &StatusServer::establishServer);
+	connect(statusThread, &QThread::finished, _tcpStatusServer, &StatusServer::deleteLater);
 }
 
 TcpServer::~TcpServer() noexcept {
+	statusThread->terminate();
 }
 
 bool TcpServer::establishServer() {
 	bool tcpRet = _tcpServer->listen(QHostAddress::Any, m_tcpPort);
-	bool tcpStatusRet = _tcpStatusServer->listen(QHostAddress::Any, m_tcpStatusPort);
+
+	statusThread->start();
+
+	connect(_tcpStatusServer, &StatusServer::serverError, this, &TcpServer::sigStatusServerError);
 
 	if (!tcpRet) {
 		return false;
 	} else
 		qDebug() << "成功建立Tcp服务端";
 
-	if (!tcpStatusRet) {
-		return false;
-	} else
-		qDebug() << "成功建立Tcp状态服务端";
-
 	// 处理对应信号槽
 	connect(_tcpServer, &QTcpServer::newConnection, this, &TcpServer::slotNewConnection);
-	connect(_tcpStatusServer, &QTcpServer::newConnection, this, &TcpServer::slotNewStatusConnection);
 
 	return true;
 }
@@ -40,36 +45,12 @@ int TcpServer::getCurrentClientNum() const {
 
 void TcpServer::slotNewConnection() {
 	// 处理订单菜单信道的新连接
-	//QTcpSocket *currentSocket = (QTcpSocket *) sender();
 	QTcpSocket *currentSocket = _tcpServer->nextPendingConnection();
 	_tcpClients.push_back(currentSocket);
 
 	connect(currentSocket, &QTcpSocket::readyRead, this, &TcpServer::slotReadyRead);
 	connect(currentSocket, &QTcpSocket::disconnected, [=, this]() {
 		_tcpClients.removeAll(currentSocket);
-	});
-}
-
-void TcpServer::slotNewStatusConnection() {
-	// 处理状态信道的新连接
-	//QTcpSocket *currentSocket = (QTcpSocket *) sender();
-	QTcpSocket *currentSocket = _tcpStatusServer->nextPendingConnection();
-	_tcpStatusClients.push_back(currentSocket);
-
-	// 向客户端发送初始化消息，启动心跳包
-	using Json = nlohmann::json;
-	QByteArray sendData;
-	Json sendJsonData;
-	sendJsonData["code"] = 2;
-	sendJsonData["Msg"] = "OK";
-	sendData = QString::fromStdString(sendJsonData.dump(2)).toUtf8();
-	currentSocket->write(sendData);
-	currentSocket->flush();
-	currentSocket->waitForBytesWritten();
-
-	connect(currentSocket, &QTcpSocket::readyRead, this, &TcpServer::slotStatusReadyRead);
-	connect(currentSocket, &QTcpSocket::disconnected, [=, this]() {
-		_tcpStatusClients.removeAll(currentSocket);
 	});
 }
 
@@ -98,31 +79,6 @@ void TcpServer::slotReadyRead() {
 		}
 		default:
 			break;
-	}
-}
-
-void TcpServer::slotStatusReadyRead() {
-	// 状态信道，处理客户端发来的心跳包
-	QTcpSocket *currentSocket = (QTcpSocket *) sender();
-	QByteArray msgData = currentSocket->readAll();
-
-	using Json = nlohmann::json;
-	Json jsonData = Json::parse(msgData.data(), nullptr, false);
-	int code = jsonData["code"].get<int>();
-
-	if (code == 2) {
-		qDebug() << currentSocket << "收到一次心跳包";
-		QString msg = QString::fromStdString(jsonData["Msg"].get<std::string>());
-		if (msg == "Heart") {
-			QByteArray sendData;
-			Json sendJsonData;
-			sendJsonData["code"] = 2;
-			sendJsonData["Msg"] = "HEART_BACK";
-			sendData = QString::fromStdString(sendJsonData.dump(2)).toUtf8();
-			currentSocket->write(sendData);
-			currentSocket->flush();
-			currentSocket->waitForBytesWritten();
-		}
 	}
 }
 

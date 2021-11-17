@@ -18,24 +18,13 @@ ClientMainWindow::ClientMainWindow(QWidget *parent)
 	// 界面初始化统一放在函数内
 	initUI();
 
-	//新建Tcp客户端，连接Tcp服务端
-	client = new TcpClient(_tcpHost, _tcpPort, _tcpStatusPort);
-	bool tcpRet = client->establishConnect();
+	// 连接TCP服务器
+	bool tcpRet = connectToServer();
 	if (!tcpRet) {
 		qDebug() << "TCP链接失败";
 		QMessageBox::critical(this, "启动失败", "未能成功连接服务器！");
 		exit(1);
 	}
-
-	// 菜单请求返回
-	connect(client, qOverload<const QByteArray>(&TcpClient::signalQueryMenu),
-			this, qOverload<const QByteArray>(&ClientMainWindow::slotQueryMenu));
-
-	// 菜单更新
-	connect(client, qOverload<const QByteArray>(&TcpClient::signalUpdateMenu),
-			this, qOverload<const QByteArray>(&ClientMainWindow::slotUpdateMenu));
-
-	connect(client, &TcpClient::signalDisconnectedToServer, this, &ClientMainWindow::slotDisconnectedToServer);// 断连
 
 	//获取程序图片缓存目录
 	if (!QDir::current().exists("Pic")) {
@@ -94,6 +83,25 @@ void ClientMainWindow::loadSetting() {
 		QMessageBox::critical(this, "启动失败", "服务端启动失败，无法打开配置文件。");
 		return;
 	}
+}
+
+bool ClientMainWindow::connectToServer() {
+	// 连接到服务器
+	//新建Tcp客户端，连接Tcp服务端
+	client = new TcpClient(_tcpHost, _tcpPort, _tcpStatusPort);
+	bool tcpRet = client->establishConnect();
+
+	// 菜单请求返回
+	connect(client, qOverload<const QByteArray>(&TcpClient::signalQueryMenu),
+			this, qOverload<const QByteArray>(&ClientMainWindow::slotQueryMenu));
+
+	// 菜单更新
+	connect(client, qOverload<const QByteArray>(&TcpClient::signalUpdateMenu),
+			this, qOverload<const QByteArray>(&ClientMainWindow::slotUpdateMenu));
+
+	connect(client, &TcpClient::signalDisconnectedToServer, this, &ClientMainWindow::slotDisconnectedToServer);// 断连
+
+	return tcpRet;
 }
 
 void ClientMainWindow::loadMenu() {

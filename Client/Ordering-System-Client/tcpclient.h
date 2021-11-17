@@ -1,10 +1,12 @@
 #ifndef TCPCLIENT_H
 #define TCPCLIENT_H
 
+#include <QDebug>
 #include <QObject>
 #include <QTcpSocket>
+#include <QThread>
 
-#include "TcpHeart.h"
+#include "StatusClient.h"
 #include "json.hpp"
 
 using Json = nlohmann::json;
@@ -13,6 +15,7 @@ class TcpClient : public QObject {
 	Q_OBJECT
 public:
 	explicit TcpClient(const QString &host, int port, int statusPort, QObject *parent = nullptr);
+	~TcpClient() noexcept;
 
 public:
 	bool establishConnect();
@@ -24,7 +27,7 @@ public:
 
 private:
 	// senData函数负责具体信息发送
-	bool sendData(const int signal, const QByteArray &data);
+	bool sendData(const QByteArray &data);
 
 private:
 	// 初始化放在构造函数内
@@ -32,8 +35,8 @@ private:
 	QTcpSocket *_socket;// 菜单订单信道
 
 	// 客户端状态信道
-	QTcpSocket *_statusSocket;// 客户端状态信道
-	TcpHeart *heart;
+	StatusClient *_statusSocket;
+	QThread *_statusClientThread;
 
 private:
 	QString _host;
@@ -41,10 +44,7 @@ private:
 	int _statusPort;
 
 private slots:
-	void slotReadyRead();       // 菜单订单信道
-	void slotStatusReadyRead(); // 客户端状态信道
-	void slotWriteHeartSocket();// 写心跳包
-	void slotHeartBad();        // 心跳包掉线处理
+	void slotReadyRead();// 菜单订单信道
 
 signals:
 	void signalQueryMenu(const QByteArray data);
@@ -52,8 +52,6 @@ signals:
 	void signalUpdateMenu(const QByteArray data);
 
 	void signalDisconnectedToServer();
-
-	void sigHeartBack();// 心跳包返回
 };
 
 #endif// TCPCLIENT_H

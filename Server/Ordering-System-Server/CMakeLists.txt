@@ -51,6 +51,6 @@ add_executable(Ordering-System-Server
         dialogchartview.h
         dialogchartview.cpp
         3rd/json.hpp
-        SimpleWebServer.cpp SimpleWebServer.h TcpServer.cpp TcpServer.h Operation.cpp Operation.h)
+        SimpleWebServer.cpp SimpleWebServer.h TcpServer.cpp TcpServer.h Operation.cpp Operation.h StatusServer.cpp StatusServer.h)
 
 target_link_libraries(Ordering-System-Server PRIVATE Qt5::Widgets Qt5::Network Qt5::Gui Qt5::Core Qt5::Sql Qt5::Charts Qt5::Multimedia ${qhttpserver_lib})

@@ -108,6 +108,7 @@ bool ServerMainWindow::connectDb() {
 
 bool ServerMainWindow::startTcpServer() {
 	bool ret;
+	bool statusRet{true};
 	tcpServer = new TcpServer(_tcpHost, _tcpPort, _tcpStatusPort);
 
 	ret = tcpServer->establishServer();
@@ -120,7 +121,12 @@ bool ServerMainWindow::startTcpServer() {
 	connect(tcpServer, qOverload<const QByteArray &>(&TcpServer::sigNewOrder),
 			this, qOverload<const QByteArray &>(&ServerMainWindow::slotNewOrder));
 
-	return ret;
+	// 状态服务器建立错误处理
+	connect(tcpServer, &TcpServer::sigStatusServerError, [&, this]() {
+		statusRet = false;
+	});
+
+	return (ret && statusRet);
 }
 
 void ServerMainWindow::startWebServer() {
@@ -819,65 +825,6 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 
 	// 生成菜单更新消息
 	generateUpdatedMenu();
-
-	//	if (oldDishType != dishType)//如果菜品种类改变
-	//	{
-	//		qDebug() << "更换类型";
-	//		int index = _menuTypeList.indexOf(oldDishType);
-	//		if (index != -1) {
-	//			//将旧的菜品种类数减1
-	//			QSqlQuery indexQuery(db);
-	//			qDebug() << indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(oldDishType));
-	//			indexQuery.next();
-	//			QSqlRecord indexRecord = indexQuery.record();
-	//			qDebug() << indexRecord.value(1).toString();
-	//			index = indexRecord.value(0).toInt();
-	//
-	//			QSqlQuery query(db);
-	//			int menuTypeNum;
-	//			qDebug() << query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
-	//			query.next();
-	//			QSqlRecord record = query.record();
-	//			qDebug() << record.value(1).toString();
-	//			menuTypeNum = record.value(2).toInt();
-	//			qDebug() << menuTypeNum;
-	//			menuTypeNum--;
-	//			qDebug() << menuTypeNum;
-	//			qDebug() << query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
-	//		}
-	//	}
-	//
-	//	int index = _menuTypeList.indexOf(dishType);
-	//	//QSqlRecord currentRecord;
-	//
-	//	if (index == -1)//如果原本没有这个菜品种类
-	//	{
-	//
-	//		_menuTypeList.append(dishType);//增加到_menuTypeList里面
-	//
-	//		QSqlQuery query(db);
-	//		qDebug() << query.exec(tr("INSERT INTO menuType (ID, TypeName, Num) VALUES(NULL,'%1',1)").arg(dishType));
-	//	} else {
-	//		//将菜品种类数加1
-	//		QSqlQuery indexQuery(db);
-	//		qDebug() << indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(dishType));
-	//		indexQuery.next();
-	//		QSqlRecord indexRecord = indexQuery.record();
-	//		qDebug() << indexRecord.value(1).toString();
-	//		index = indexRecord.value(0).toInt();
-	//
-	//		QSqlQuery query(db);
-	//		qDebug() << query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
-	//		int menuTypeNum;
-	//		query.next();
-	//		QSqlRecord record = query.record();
-	//		qDebug() << record.value(1).toString();
-	//		menuTypeNum = record.value(2).toInt();
-	//		qDebug() << menuTypeNum;
-	//		menuTypeNum++;
-	//		qDebug() << menuTypeNum;
-	//		qDebug() << query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
-	//	}
 }
 
 //重写退出事件
