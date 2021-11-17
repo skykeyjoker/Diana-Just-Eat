@@ -36,9 +36,6 @@ ServerMainWindow::ServerMainWindow(QWidget *parent)
 	// 启动web服务器
 	startWebServer();
 
-	//收到sendMenuUpdateSiganl后调用slotSendMenuUpdateMessage槽函数
-	//connect(this, &ServerMainWindow::sendMenuUpdateSignal, this, &ServerMainWindow::slotSendMenuUpdateMessage);
-
 	// 分离初始化UI
 	initUI();
 }

@@ -30,20 +30,12 @@ add_executable(Ordering-System-Server
         dialogaddrecord.cpp
         dialogeditrecord.h
         dialogeditrecord.cpp
-        convertpic.h
-        convertpic.cpp
         dialoghistoryviewer.h
         dialoghistoryviewer.cpp
         dialogordersviewer.h
         dialogordersviewer.cpp
         Dish.h
         Dish.cpp
-        timestamp.h
-        timestamp.cpp
-        httpfileload.h
-        httpfileload.cpp
-        httpfileupdate.h
-        httpfileupdate.cpp
         mydatetimeselect.h
         mydatetimeselect.cpp
         mybutton.h

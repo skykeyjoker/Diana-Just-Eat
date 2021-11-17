@@ -13,7 +13,6 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-//#include "writejson.h"
 #include "json.hpp"
 
 class DialogSettings : public QDialog {

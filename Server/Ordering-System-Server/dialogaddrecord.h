@@ -20,11 +20,6 @@
 #include <QWidget>
 
 
-//#include "convertpic.h"
-#include "httpfileload.h"
-#include "httpfileupdate.h"
-
-
 class DialogAddRecord : public QDialog {
 	Q_OBJECT
 public:
