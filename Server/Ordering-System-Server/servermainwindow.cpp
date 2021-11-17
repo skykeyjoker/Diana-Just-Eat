@@ -512,20 +512,20 @@ void ServerMainWindow::slotBtnAddClicked() {
 }
 
 void ServerMainWindow::slotBtnDelClicked() {
+	// 删除菜品
+
 	if (_view_Menu->currentIndex().row() == -1) {
 		QMessageBox::critical(this, "删除失败", "未选择任何行");
 		return;
 	}
 
-	// TODO 此处更新菜单
-
 	int ret = QMessageBox::question(this, "确认删除", "你确认要删除这个菜品吗？");
 	if (ret == QMessageBox::Yes) {
 		//先记录一下当前的部分信息
 		QSqlRecord record = _model->record(_view_Menu->currentIndex().row());
-		QString menuName = record.value(1).toString();
-		QString fileName = record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/"), -1);
-		QString menuType = record.value(2).toString();
+		QString dishName = record.value(1).toString();
+		QString dishType = record.value(2).toString();
+		QString dishPhoto = record.value(5).toString();
 
 		bool delRet = _model->removeRow(_view_Menu->currentIndex().row());
 		if (!delRet) {
@@ -533,6 +533,7 @@ void ServerMainWindow::slotBtnDelClicked() {
 			qDebug() << db.lastError().text();
 			return;
 		}
+
 		bool submitRet = _model->submitAll();
 		if (!submitRet) {
 			QMessageBox::critical(this, "删除失败", "删除菜品失败！");
@@ -540,66 +541,51 @@ void ServerMainWindow::slotBtnDelClicked() {
 			return;
 		}
 
-		// 删除本地和远程的图片
-		// TODO 删除本地的图片即可
+		// 构造Operation操作
+		using namespace DianaJustEat;
+		MenuOperation *delOperation = new MenuOperation(MenuOperationType::DeleteDish, dishName);
+		_operations.push_back(delOperation);
+
+		// 删除本地图片
 		QDir dir = QDir::currentPath() + "/Pic";
 
-		if (dir.exists(menuName + ".jpg")) {
-			dir.remove(menuName + ".jpg");
-			qDebug() << "Delete Menu: remove " + menuName + ".jpg";
-
-			//删除HTTP服务器上的文件
-			//HttpFileUpdate updateFile(fileName, _picHost + "/update.php");
-			//updateFile.update();
-		}
-		if (dir.exists(menuName + ".jpeg")) {
-			dir.remove(menuName + ".jpeg");
-			qDebug() << "Delete Menu: remove " + menuName + ".jpeg";
-
-			//删除HTTP服务器上的文件
-			//HttpFileUpdate updateFile(fileName, _picHost + "/update.php");
-			//updateFile.update();
-		}
-		if (dir.exists(menuName + ".png")) {
-			dir.remove(menuName + ".png");
-			qDebug() << "Delete Menu: remove " + menuName + ".png";
-
-			//删除HTTP服务器上的文件
-			//HttpFileUpdate updateFile(fileName, _picHost + "/update.php");
-			//updateFile.update();
+		if (dir.exists(dishPhoto)) {
+			dir.remove(dishPhoto);
+			qDebug() << "Delete Menu: remove " + dishPhoto;
 		}
 
 
-		//维护menuType表
-		// TODO 有menuType的model
+		// 维护menuType表
+		int newMenuTypeNum;
+		for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
+			auto currentMenuTypeRecord = _menuTypeModel->record(i);
+			QString currentMenuTypeName = currentMenuTypeRecord.value(1).toString();
 
-		int index = _menuTypeList.indexOf(menuType);
+			if (currentMenuTypeName == dishType) {
+				currentMenuTypeRecord.setValue(2, currentMenuTypeRecord.value(2).toInt() - 1);
+				newMenuTypeNum = currentMenuTypeRecord.value(2).toInt();
+				_menuTypeModel->setRecord(i, currentMenuTypeRecord);
 
-		QSqlQuery query(db);
-		if (index != -1) {
-			//index++;
-			QSqlQuery indexQuery(db);
-			qDebug() << indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(menuType));
-			indexQuery.next();
-			QSqlRecord indexRecord = indexQuery.record();
-			qDebug() << indexRecord.value(1).toString();
-			index = indexRecord.value(0).toInt();
-
-			int menuTypeNum;
-			qDebug() << query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
-			query.next();
-			QSqlRecord record = query.record();
-			qDebug() << record.value(1).toString();
-			menuTypeNum = record.value(2).toInt();
-			qDebug() << menuTypeNum;
-			menuTypeNum--;
-			qDebug() << menuTypeNum;
-			qDebug() << query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
+				break;
+			}
 		}
 
-		//向客户端发送更新菜单消息
-		// TODO 发送菜单更新消息
-		//emit sendMenuUpdateSignal();
+		// 构造Operation
+		MenuTypeOperation *minusOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, dishType, newMenuTypeNum);
+		_operations.push_back(minusOperation);
+
+		// 更新菜品种类数量map
+		_menuTypeNumHash[dishType] = newMenuTypeNum;
+
+		// 提交menuType Model
+		if (!_menuTypeModel->submitAll()) {
+			qDebug() << "更新菜单失败";
+			qDebug() << _menuTypeModel->lastError().text();
+		}
+		qDebug() << "_menuTypeModel Submitted";
+
+		// 生成菜单更新消息
+		generateUpdatedMenu();
 	}
 }
 
