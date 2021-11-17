@@ -1,25 +1,23 @@
 #ifndef DIALOGADDRECORD_H
 #define DIALOGADDRECORD_H
 
-#include <QWidget>
-#include <QDialog>
-#include <QPushButton>
-#include <QLineEdit>
-#include <QTextEdit>
-#include <QTextBrowser>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QComboBox>
-#include <QMessageBox>
-#include <QFile>
-#include <QFileInfo>
-#include <QFileDialog>
-#include <QPixmap>
 #include <QCloseEvent>
+#include <QComboBox>
+#include <QDialog>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
 #include <QFileInfo>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QPixmap>
+#include <QPushButton>
+#include <QTextBrowser>
+#include <QTextEdit>
+#include <QVBoxLayout>
+#include <QWidget>
 
 
 //#include "convertpic.h"
@@ -27,42 +25,38 @@
 #include "httpfileupdate.h"
 
 
-class DialogAddRecord : public QDialog
-{
-    Q_OBJECT
+class DialogAddRecord : public QDialog {
+	Q_OBJECT
 public:
-    explicit DialogAddRecord(QWidget *parent = nullptr);
+	explicit DialogAddRecord(QWidget *parent = nullptr);
 
-    // dish info
-    QString _dishName;
-    QString _dishType;
-    QString _dishInfo;
-    QString _dishPrice;
-    //QByteArray _dishPhoto;
-    QString _dishPhoto;
+	// dish info
+	QString _dishName;
+	QString _dishType;
+	QString _dishInfo;
+	double _dishPrice;
+	QString _dishPhoto;
 
-    // widgets
-    QLineEdit *le_Name;
-    QLineEdit *le_Type;
-    QTextEdit *le_Info;
-    QLineEdit *le_Price;
-    QLineEdit *le_Photo;
+	// widgets
+	QLineEdit *le_Name;
+	QLineEdit *le_Type;
+	QTextEdit *le_Info;
+	QLineEdit *le_Price;
+	QLineEdit *le_Photo;
 
-    // pixmap
-    QString picPath;
-    QPixmap _pix;
+	// pixmap
+	QString picPath;
+	QPixmap _pix;
+	QLabel *browser;
 
-    QString _url;
-
-    void setUrl(QString url);
 public slots:
-    void slotBtnCancelClicked();
-    void slotBtnSubmitClicked();
+	void slotBtnCancelClicked();
+	void slotBtnSubmitClicked();
 
-    void closeEvent(QCloseEvent *); //重写退出事件
+	void closeEvent(QCloseEvent *);//重写退出事件
 signals:
-    //void signalSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
-    void signalSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
+	//void signalSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QByteArray dishPhoto);
+	void signalSubmit(QString dishName, QString dishType, QString dishInfo, double dishPrice, QString dishPhoto);
 };
 
-#endif // DIALOGADDRECORD_H
+#endif// DIALOGADDRECORD_H

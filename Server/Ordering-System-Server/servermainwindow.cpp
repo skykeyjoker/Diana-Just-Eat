@@ -471,23 +471,8 @@ void ServerMainWindow::slotNewOrder(const QByteArray &menu) {
 	sound->play();
 }
 
-// TODO 此处重写为菜单更新消息发送
-//void ServerMainWindow::slotSendMenuUpdateMessage() {
-//	qDebug() << "slotSendMenuUpdateMessage";
-//	// TODO 重构菜单更新消息发送
-//
-//	QTcpSocket *currentSocket;
-//
-//	for (int i = 0; i < _tcpClients.size(); i++)//遍历每一个客户端socket,发送信息
-//	{
-//		currentSocket = _tcpClients.at(i);
-//		currentSocket->write(QString("[Menu Updated]").toUtf8());
-//	}
-//
-//	qDebug() << "SendMenuUpdateMessage Done";
-//}
-
 void ServerMainWindow::slotBtnEditClicked() {
+	// 修改菜品对话框
 	if (_view_Menu->currentIndex().row() == -1)//检查是否选中某行
 	{
 		QMessageBox::critical(this, "编辑失败", "未选择任何行");
@@ -497,45 +482,33 @@ void ServerMainWindow::slotBtnEditClicked() {
 	DialogEditRecord *dlg = new DialogEditRecord;//初始化订单编辑对话框
 
 	QSqlRecord record = _model->record(_view_Menu->currentIndex().row());//利用QSqlRecord记录一下当前行的的record
-	//将当前行的数据提取
+	// 将当前行的数据提取
 	int dishId = record.value(0).toInt();
 	QString dishName = record.value(1).toString();
 	QString dishType = record.value(2).toString();
 	QString dishInfo = record.value(3).toString();
 	double dishPrice = record.value(4).toDouble();
-	//QString dishPhoto = record.value(5).toString().mid(record.value(5).toString().lastIndexOf("/") + 1, -1);
 	QString dishPhoto = record.value(5).toString();
 	qDebug() << "dishPhoto:" << dishPhoto;
 
-	// TODO 此处更新菜单
-
-	//赋值一下oldDishType
+	// 赋值一下oldDishType
 	oldDishType = dishType;
 
 	dlg->setValue(dishId, dishName, dishType, dishInfo, dishPrice, dishPhoto);//传入值
 	dlg->show();
 
-
-	//利用函数指针调用DialogEditRecord带参数的signalUpdate信号，和ServerMainWindow带参数的slotUpdate槽
-	//	void (DialogEditRecord::*pSignalUpdate)(int, QString, QString, QString, QString, QString) = &DialogEditRecord::signalUpdate;
-	//	void (ServerMainWindow::*pSlotUpdate)(int, QString, QString, QString, QString, QString) = &ServerMainWindow::slotUpdate;
-	//	connect(dlg, pSignalUpdate, this, pSlotUpdate);
 	connect(dlg, qOverload<int, const QString, const QString, const QString, const double, const QString, bool>(&DialogEditRecord::signalUpdate),
 			this, qOverload<int, const QString, const QString, const QString, const double, const QString, bool>(&ServerMainWindow::slotUpdate));
 }
 
 void ServerMainWindow::slotBtnAddClicked() {
+	// 添加菜品对话框
 	DialogAddRecord *dlg = new DialogAddRecord;
 
-	dlg->setUrl("127.0.0.1");
 	dlg->show();
 
-	// TODO 此处更新菜单
-
-	//利用函数指针调用DialogAddRecord带参数的signalSubmit信号，和ServerMainWindow带参数的slotSubmit槽
-	void (DialogAddRecord::*pSignalSubmit)(QString, QString, QString, QString, QString) = &DialogAddRecord::signalSubmit;
-	void (ServerMainWindow::*pSlotSubmit)(QString, QString, QString, QString, QString) = &ServerMainWindow::slotSubmit;
-	connect(dlg, pSignalSubmit, this, pSlotSubmit);
+	connect(dlg, qOverload<QString, QString, QString, double, QString>(&DialogAddRecord::signalSubmit),
+			this, qOverload<QString, QString, QString, double, QString>(&ServerMainWindow::slotSubmit));
 }
 
 void ServerMainWindow::slotBtnDelClicked() {
@@ -630,18 +603,20 @@ void ServerMainWindow::slotBtnDelClicked() {
 	}
 }
 
-void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto) {
+void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString dishInfo, double dishPrice, QString dishPhoto) {
+	// 添加菜品
 	qDebug() << "slotSubmit";
 	//qDebug()<<dishName<<" "<<dishType<<" "<<dishInfo<<" "<<dishPrice<<" "<<dishPhoto;
 
+	// 维护menu表
 	QSqlRecord record = _model->record();
 	//插入record信息
+	record.setNull(0);
 	record.setValue(1, dishName);
 	record.setValue(2, dishType);
 	record.setValue(3, dishInfo);
-	record.setValue(4, dishPrice.toDouble());
-	// TODO 本地图片目录即可
-	//record.setValue(5, _picHost + "/upload/" + dishPhoto);
+	record.setValue(4, dishPrice);
+	record.setValue(5, dishPhoto);
 
 	bool bRet = _model->insertRecord(-1, record);//插入record
 
@@ -652,62 +627,72 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
 	} else
 		qDebug() << "insert ok";
 
+	// 构造一项操作
+	using namespace DianaJustEat;
+	MenuOperation *ope = new MenuOperation(MenuOperationType::AddDish, dishName, dishType, dishInfo, dishPrice, dishPhoto, false);
 
-	_model->submitAll();
-
-
-	//维护menuType表
-	// TODO 有menuType的model
-	int index = _menuTypeList.indexOf(dishType);
-	//QSqlRecord currentRecord;
-
-	if (index == -1)//如果原本没有这个菜品种类
-	{
-		_menuTypeList.append(dishType);//增加到_menuTypeList里面
-
-
-		QSqlQuery query(db);
-		qDebug() << query.exec(tr("INSERT INTO menuType (ID, TypeName, Num) VALUES(NULL,'%1',1)").arg(dishType));
-
-
-		//给客户端发送更新菜单消息
-		//注意一下发送消息的顺序,要先更显完菜品信息才发送更新信息
-		// TODO 发送菜单更新消息
-		//emit sendMenuUpdateSignal();
-
-	} else {
-		//如果原来有这个菜品类
-		//菜品数加1
-		QSqlQuery indexQuery(db);
-		qDebug() << indexQuery.exec(tr("SELECT * FROM menuType WHERE TypeName='%1'").arg(dishType));
-		indexQuery.next();
-		QSqlRecord indexRecord = indexQuery.record();
-		qDebug() << indexRecord.value(1).toString();
-		index = indexRecord.value(0).toInt();
-
-		QSqlQuery query(db);
-		qDebug() << query.exec(tr("SELECT * FROM menuType WHERE ID=%1").arg(index));
-		int menuTypeNum;
-		query.next();
-		QSqlRecord record = query.record();
-		qDebug() << record.value(1).toString();
-		menuTypeNum = record.value(2).toInt();
-		qDebug() << menuTypeNum;
-		menuTypeNum++;
-		qDebug() << menuTypeNum;
-		qDebug() << query.exec(tr("UPDATE menuType SET NUM=%1 WHERE ID=%2").arg(menuTypeNum).arg(index));
-
-
-		//给客户端发送更新菜单消息
-		//注意一下发送消息的顺序,要先更显完菜品信息才发送更新信息
-		// TODO 发送菜单更新消息
-		//emit sendMenuUpdateSignal();
+	if (!_model->submitAll()) {
+		qDebug() << "菜单提交失败";
+		qDebug() << _model->lastError().text();
 	}
+	_operations.push_back(ope);
+
+	// 维护menuType表
+	if (_menuTypeList.contains(dishType)) {
+		// 已有该菜品种类
+		int newMenuTypeNum;
+
+		for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
+			auto currentMenuTypeRecord = _menuTypeModel->record(i);
+			QString currentMenuTypeRecordName = currentMenuTypeRecord.value(1).toString();
+
+			if (currentMenuTypeRecordName == dishType) {
+				currentMenuTypeRecord.setValue(2, currentMenuTypeRecord.value(2).toInt() + 1);
+				newMenuTypeNum = currentMenuTypeRecord.value(2).toInt();
+
+				_menuTypeModel->setRecord(i, currentMenuTypeRecord);
+				break;
+			}
+		}
+
+		// 构造Operation
+		MenuTypeOperation *addOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, dishType, newMenuTypeNum);
+		_operations.push_back(addOperation);
+	} else {
+		// 新菜品种类
+
+		// 添加新种类
+		QSqlRecord newMenuTypeRecord = _menuTypeModel->record();
+		newMenuTypeRecord.setNull(0);
+		newMenuTypeRecord.setValue(1, dishType);
+		newMenuTypeRecord.setValue(2, 1);// 新种类仅有1样菜品
+		_menuTypeModel->insertRecord(_menuTypeModel->rowCount(), newMenuTypeRecord);
+
+		// 构造Operation
+		MenuTypeOperation *newOperation = new MenuTypeOperation(MenuTypeOperationType::AddType, dishType, 1);   // 新建种类
+		MenuTypeOperation *addOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, dishType, 1);// 新菜品种类菜品数设置为1
+		_operations.push_back(newOperation);
+		_operations.push_back(addOperation);
+
+		_menuTypeList.append(dishType);
+		_menuTypeNumHash[dishType] = 1;
+	}
+
+	// 提交menuType Model
+	if (!_menuTypeModel->submitAll()) {
+		qDebug() << "更新菜单失败";
+		qDebug() << _menuTypeModel->lastError().text();
+	}
+	qDebug() << "_menuTypeModel Submitted";
+
+	// 生成菜单更新消息
+	generateUpdatedMenu();
 }
 
 void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const double dishPrice, const QString dishPhoto, bool photoUpdate) {
+	// 菜品更新
 	qDebug() << "slotUpdate";
-	// TODO 重构菜单更新
+
 	//将更新信息插入record
 	QSqlRecord record = _model->record(_view_Menu->currentIndex().row());
 	record.setValue(1, dishName);
@@ -718,7 +703,7 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 	// 构造一项操作
 	using namespace DianaJustEat;
 	MenuOperation *ope = new MenuOperation(MenuOperationType::UpdateDish, dishName, dishType, dishInfo, dishPrice, dishPhoto, photoUpdate);
-	// TODO 判断图片是否更新
+	// 判断图片是否更新
 	if (photoUpdate) {
 		record.setValue(5, dishPhoto);
 	}
@@ -740,12 +725,10 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 	qDebug() << "_model submitted";
 
 	// 维护menuType表
-	// TODO 有menuType的model
 	if (oldDishType != dishType) {
 		qDebug() << "菜品种类更换" << dishName << dishType << oldDishType;
 		if (_menuTypeList.contains(dishType)) {
 			// 更换到已有种类
-			// TODO 维护MenuType model
 			int oldMenuTypeNum;
 			int newMenuTypeNum;
 			for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
@@ -768,7 +751,7 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 				}
 			}
 
-			// TODO 添加Operations到操作列表
+			// 添加Operations到操作列表
 			qDebug() << oldDishType << oldMenuTypeNum << dishType << newMenuTypeNum;
 			MenuTypeOperation *minusOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, oldDishType, oldMenuTypeNum);// 旧类型
 			MenuTypeOperation *addOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, dishType, newMenuTypeNum);     // 新类型
@@ -779,7 +762,6 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 			_menuTypeNumHash[oldDishType] = _menuTypeNumHash[oldDishType] - 1;
 		} else {
 			// 更换到新种类
-			// TODO 维护MenuType model
 			// 旧种类-1
 			int oldMenuTypeNum;
 			for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
@@ -802,7 +784,7 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 			newMenuTypeRecord.setValue(2, 1);// 新种类仅有1样菜品
 			_menuTypeModel->insertRecord(_menuTypeModel->rowCount(), newMenuTypeRecord);
 
-			// TODO 添加Operations到操作列表
+			// 添加Operations到操作列表
 			MenuTypeOperation *newOperation = new MenuTypeOperation(MenuTypeOperationType::AddType, dishType, 1);                     // 添加新类型
 			MenuTypeOperation *addOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, dishType, 1);                  // 新类型+1
 			MenuTypeOperation *minusOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, oldDishType, oldMenuTypeNum);// 旧类型
@@ -815,7 +797,7 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 			_menuTypeNumHash[oldDishType] = _menuTypeNumHash[oldDishType] - 1;
 		}
 
-		// TODO 提交menuType Model
+		// 提交menuType Model
 		if (!_menuTypeModel->submitAll()) {
 			qDebug() << "更新菜单失败";
 			qDebug() << _menuTypeModel->lastError().text();

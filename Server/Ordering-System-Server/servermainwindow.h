@@ -142,7 +142,7 @@ public slots:
 	void slotBtnAddClicked();
 	void slotBtnDelClicked();
 
-	void slotSubmit(QString dishName, QString dishType, QString dishInfo, QString dishPrice, QString dishPhoto);
+	void slotSubmit(QString dishName, QString dishType, QString dishInfo, double dishPrice, QString dishPhoto);
 	void slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const double dishPrice, const QString dishPhoto, bool photoUpdated);
 
 
