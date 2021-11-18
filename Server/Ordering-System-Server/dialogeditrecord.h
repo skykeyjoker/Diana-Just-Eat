@@ -3,6 +3,7 @@
 
 #include <QCloseEvent>
 #include <QComboBox>
+#include <QDebug>
 #include <QDialog>
 #include <QDir>
 #include <QFile>

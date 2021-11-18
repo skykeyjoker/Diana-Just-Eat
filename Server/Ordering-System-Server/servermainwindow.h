@@ -29,6 +29,7 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include "DialogEditMenuType.h"
 #include "Dish.h"
 #include "Operation.h"
 #include "SimpleWebServer.h"
@@ -87,20 +88,12 @@ private:
 
 	QList<QString> _menuTypeList;// 菜品种类列表
 	QString oldDishType;
-	QVector<Dish> _dishes;                         // 菜品列表
+	QVector<Dish> _dishes;
 	QHash<QString, int> _menuTypeNumHash;          // 菜品种类与数量键值对
 	QVector<DianaJustEat::Operation *> _operations;// 操作列表
 
 private:
 	// Config Tab
-	QLineEdit *le_MySqlHost;
-	QLineEdit *le_MySqlName;
-	QLineEdit *le_MySqlUser;
-	QLineEdit *le_MySqlPasswd;
-	QLineEdit *le_MySqlPort;
-
-	QLineEdit *le_HttpHost;
-
 	QLineEdit *le_TcpHost;
 	QLineEdit *le_TcpPort;
 	QLineEdit *le_TcpStatusPort;
@@ -140,6 +133,7 @@ public slots:
 	void slotBtnEditClicked();
 	void slotBtnAddClicked();
 	void slotBtnDelClicked();
+	void slotBtnTypeEditClicked();
 
 	void slotSubmit(QString dishName, QString dishType, QString dishInfo, double dishPrice, QString dishPhoto);
 	void slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const double dishPrice, const QString dishPhoto, bool photoUpdated);
@@ -152,7 +146,12 @@ public slots:
 	void closeEvent(QCloseEvent *);//重写退出事件
 
 public slots:
-	// 菜单相关信号槽
+	void slotAddNewType(const QString typeName, const int typeNum);
+	void slotEditType(const QString oldTypeName, const QString newTypeName, const int typeNum);
+	void slotDelType(const QString typeName);
+
+public slots:
+	// 客户端消息相关信号槽
 	void slotQueryMenu(QTcpSocket *target);   // 客户端请求菜单
 	void slotNewOrder(const QByteArray &menu);// 客户端发送新订单
 

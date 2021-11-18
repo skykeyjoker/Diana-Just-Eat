@@ -64,7 +64,7 @@ namespace DianaJustEat {
 	class MenuTypeOperation : public Operation {
 	public:
 		explicit MenuTypeOperation() = default;
-		MenuTypeOperation(const MenuTypeOperationType opt, const QString &typeName, const int typeNum);
+		MenuTypeOperation(const MenuTypeOperationType opt, const QString &typeName, const int typeNum = 0);
 
 	public:
 		virtual OperationKind kind();

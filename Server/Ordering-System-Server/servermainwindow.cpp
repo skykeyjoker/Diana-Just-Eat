@@ -95,7 +95,10 @@ bool ServerMainWindow::connectDb() {
 	for (int i = 0; i < _menuTypeModel->rowCount(); i++) {
 		QSqlRecord currentRecord = _menuTypeModel->record(i);
 		QString currentMenuTypeName = currentRecord.value(1).toString();
+		int currentMenuTypeNum = currentRecord.value(2).toInt();
+
 		_menuTypeList.append(currentMenuTypeName);
+		_menuTypeNumHash[currentMenuTypeName] = currentMenuTypeNum;
 	}
 
 	qDebug() << "_menuTypeList: " << _menuTypeList;
@@ -198,7 +201,6 @@ void ServerMainWindow::initUI() {
 
 
 	// Init Tab of Menu
-	// TODO 添加菜品种类编辑
 	QVBoxLayout *layMenu = new QVBoxLayout(ui->tab_Menu);
 	_view_Menu = new QTableView;
 	layMenu->addWidget(_view_Menu);
@@ -227,7 +229,6 @@ void ServerMainWindow::initUI() {
 	QPushButton *btnEdit = new QPushButton("修改菜品");
 	QPushButton *btnAdd = new QPushButton("添加菜品");
 	QPushButton *btnDel = new QPushButton("删除菜品");
-	// TODO 添加菜品种类编辑按钮
 	QPushButton *btnTypeEdit = new QPushButton("编辑菜品种类");
 
 	layMenu_btn->addWidget(btnEdit);
@@ -241,11 +242,10 @@ void ServerMainWindow::initUI() {
 
 
 	//绑定按钮信号与槽
-	// TODO 添加菜品种类编辑按钮
 	connect(btnEdit, &QPushButton::clicked, this, &ServerMainWindow::slotBtnEditClicked);
 	connect(btnAdd, &QPushButton::clicked, this, &ServerMainWindow::slotBtnAddClicked);
 	connect(btnDel, &QPushButton::clicked, this, &ServerMainWindow::slotBtnDelClicked);
-
+	connect(btnTypeEdit, &QPushButton::clicked, this, &ServerMainWindow::slotBtnTypeEditClicked);
 
 	// Init Tab for Config
 	QVBoxLayout *layConfig = new QVBoxLayout(ui->tab_Settings);
@@ -583,7 +583,26 @@ void ServerMainWindow::slotBtnDelClicked() {
 
 		// 生成菜单更新消息
 		generateUpdatedMenu();
+
+		// 清空_dishes，让新客户端请求菜单时重建缓存
+		_dishes.clear();
 	}
+}
+
+void ServerMainWindow::slotBtnTypeEditClicked() {
+	// 编辑菜品种类对话框
+	DialogEditMenuType *dlg = new DialogEditMenuType(_menuTypeNumHash, this);
+	dlg->show();
+
+	//void sigAddNewType(const QString typeName, const int typeNum);
+	//void sigEditType(const QString oldTypeName, const QString newTypeName, const int typeNum);
+	//void sigDelType(const QString typeName);
+	connect(dlg, qOverload<const QString, const int>(&DialogEditMenuType::sigAddNewType),
+			this, qOverload<const QString, const int>(&ServerMainWindow::slotAddNewType));
+	connect(dlg, qOverload<const QString, const QString, const int>(&DialogEditMenuType::sigEditType),
+			this, qOverload<const QString, const QString, const int>(&ServerMainWindow::slotEditType));
+	connect(dlg, qOverload<const QString>(&DialogEditMenuType::sigDelType),
+			this, qOverload<const QString>(&ServerMainWindow::slotDelType));
 }
 
 void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString dishInfo, double dishPrice, QString dishPhoto) {
@@ -670,6 +689,9 @@ void ServerMainWindow::slotSubmit(QString dishName, QString dishType, QString di
 
 	// 生成菜单更新消息
 	generateUpdatedMenu();
+
+	// 清空_dishes，让新客户端请求菜单时重建缓存
+	_dishes.clear();
 }
 
 void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QString dishType, const QString dishInfo, const double dishPrice, const QString dishPhoto, bool photoUpdate) {
@@ -790,6 +812,9 @@ void ServerMainWindow::slotUpdate(int dishId, const QString dishName, const QStr
 
 	// 生成菜单更新消息
 	generateUpdatedMenu();
+
+	// 清空_dishes，让新客户端请求菜单时重建缓存
+	_dishes.clear();
 }
 
 //重写退出事件
@@ -1075,4 +1100,73 @@ void ServerMainWindow::generateUpdatedMenu() {
 
 	// 清除操作列表
 	_operations.clear();
+}
+
+void ServerMainWindow::slotAddNewType(const QString typeName, const int typeNum) {
+	// 添加新菜品种类
+	qDebug() << "添加新菜品种类：" << typeName << typeNum;
+
+	_menuTypeNumHash[typeName] = typeNum;
+	_menuTypeList.push_back(typeName);
+
+	// 生成Operation
+	using namespace DianaJustEat;
+	MenuTypeOperation *newOperation = new MenuTypeOperation(MenuTypeOperationType::AddType, typeName);
+	MenuTypeOperation *addOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, typeName, typeNum);
+	_operations.push_back(newOperation);
+	_operations.push_back(addOperation);
+
+	// 生成菜单更新消息
+	generateUpdatedMenu();
+}
+
+void ServerMainWindow::slotEditType(const QString oldTypeName, const QString newTypeName, const int typeNum) {
+	// 更新菜品种类
+	qDebug() << "更新菜品种类" << oldTypeName << newTypeName << typeNum;
+
+	using namespace DianaJustEat;
+	if (oldTypeName == newTypeName) {
+		// 菜品种类名称未改变
+		_menuTypeNumHash[newTypeName] = typeNum;
+
+		// 构造Operation
+		MenuTypeOperation *updateOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, newTypeName, typeNum);
+		_operations.push_back(updateOperation);
+	} else {
+		// 菜品种类名称改变
+		_menuTypeList.removeAll(oldTypeName);
+		_menuTypeNumHash.remove(oldTypeName);
+		_menuTypeList.push_back(newTypeName);
+		_menuTypeNumHash[newTypeName] = typeNum;
+
+		// 构造Operation
+		MenuTypeOperation *delOperation = new MenuTypeOperation(MenuTypeOperationType::DeleteType, oldTypeName);
+		MenuTypeOperation *addOperation = new MenuTypeOperation(MenuTypeOperationType::AddType, newTypeName);
+		MenuTypeOperation *updateOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, newTypeName, typeNum);
+		_operations.push_back(delOperation);
+		_operations.push_back(addOperation);
+		_operations.push_back(updateOperation);
+
+		// TODO 是否有必要替用户把旧品种包含的菜品的相关信息也更新一下？
+	}
+
+
+	// 生成菜单更新消息
+	generateUpdatedMenu();
+}
+
+void ServerMainWindow::slotDelType(const QString typeName) {
+	// 删除菜品种类
+	qDebug() << "删除菜品种类：" << typeName;
+
+	_menuTypeNumHash.remove(typeName);
+	_menuTypeList.removeAll(typeName);
+
+	// 生成Operation
+	using namespace DianaJustEat;
+	MenuTypeOperation *delOperation = new MenuTypeOperation(MenuTypeOperationType::DeleteType, typeName);
+	_operations.push_back(delOperation);
+
+	// 生成菜单更新消息
+	generateUpdatedMenu();
 }
