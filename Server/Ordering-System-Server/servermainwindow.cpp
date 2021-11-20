@@ -187,12 +187,6 @@ void ServerMainWindow::initUI() {
 	layOrder_Btns->addStretch(2);
 	layOrders->addLayout(layOrder_Btns);
 
-	//绑定双击事件
-	//connect(_table_Orders,SIGNAL(itemDoubleClicked(QTableWidgetItem *item)),this,SLOT(slotItemDoubleClicked(QTableWidgetItem *item)));
-	//connect(_table_Orders,&QTableWidget::doubleClicked(const QModelIndex &index));
-	//connect(_table_Orders,SIGNAL(SIGNAL(cellDoubleClicked(int , int ))),this,SLOT(slotCellDoubleClicked(int , int )));
-	//TODO 绑定双击事件
-
 	//绑定按钮
 	connect(btnHistory, &QPushButton::clicked, this, &ServerMainWindow::slotBtnHistoryClicked);
 	connect(btnReHandle, &QPushButton::clicked, this, &ServerMainWindow::slotBtnReHandleClicked);
@@ -868,12 +862,16 @@ void ServerMainWindow::slotRevBtnClicked() {
 }
 
 void ServerMainWindow::slotBtnHistoryClicked() {
+	// 历史订单查看
+	// TODO 新的重构大山，完善图表功能
 	DialogHistoryViewer *dlg = new DialogHistoryViewer;
 
 	dlg->exec();
 }
 
 void ServerMainWindow::slotBtnReHandleClicked() {
+	// 订单重新处理
+	// TODO 检查订单是否需要重新处理
 	if (_table_Orders->currentIndex().row() == -1)//判断是否选中一行
 	{
 		QMessageBox::critical(this, "处理失败", "未选中任何行!");
@@ -900,6 +898,7 @@ void ServerMainWindow::slotBtnReHandleClicked() {
 }
 
 void ServerMainWindow::slotBtnHandleClicked() {
+	// TODO 订单处理事件检查是否需要重构
 	/* 订单处理
      * 先将该订单状态修改
      * 更新状态栏订单信息
@@ -1106,6 +1105,18 @@ void ServerMainWindow::slotAddNewType(const QString typeName, const int typeNum)
 	// 添加新菜品种类
 	qDebug() << "添加新菜品种类：" << typeName << typeNum;
 
+	// 更新MenuType Model
+	auto newTypeRecord = _menuTypeModel->record();
+	newTypeRecord.setNull(0);
+	newTypeRecord.setValue(1, typeName);
+	newTypeRecord.setValue(2, typeNum);
+	_menuTypeModel->insertRecord(_menuTypeModel->rowCount(), newTypeRecord);// 插入新纪录
+	bool ret = _menuTypeModel->submitAll();
+	if (!ret) {
+		qDebug() << "添加新菜品种类时更新数据库出错！" << _menuTypeModel->lastError().text();
+		QMessageBox::critical(this, "更新数据库出错", "添加新菜品种类时更新数据库出错！");
+	}
+
 	_menuTypeNumHash[typeName] = typeNum;
 	_menuTypeList.push_back(typeName);
 
@@ -1129,6 +1140,22 @@ void ServerMainWindow::slotEditType(const QString oldTypeName, const QString new
 		// 菜品种类名称未改变
 		_menuTypeNumHash[newTypeName] = typeNum;
 
+		// 更新MenuType Model
+		for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
+			auto currentMenuTypeRecord = _menuTypeModel->record(i);
+			QString currentMenuTypeRecordName = currentMenuTypeRecord.value(1).toString();
+
+			if (currentMenuTypeRecordName == newTypeName) {
+				currentMenuTypeRecord.setValue(2, typeNum);
+				_menuTypeModel->setRecord(i, currentMenuTypeRecord);
+			}
+		}
+		bool ret = _menuTypeModel->submitAll();
+		if (!ret) {
+			qDebug() << "更新菜品种类时更新数据库出错！" << _menuTypeModel->lastError().text();
+			QMessageBox::critical(this, "更新数据库出错", "更新菜品种类时更新数据库出错！");
+		}
+
 		// 构造Operation
 		MenuTypeOperation *updateOperation = new MenuTypeOperation(MenuTypeOperationType::UpdateType, newTypeName, typeNum);
 		_operations.push_back(updateOperation);
@@ -1138,6 +1165,23 @@ void ServerMainWindow::slotEditType(const QString oldTypeName, const QString new
 		_menuTypeNumHash.remove(oldTypeName);
 		_menuTypeList.push_back(newTypeName);
 		_menuTypeNumHash[newTypeName] = typeNum;
+
+		// 更新MenuType Model
+		for (int i = 0; i < _menuTypeModel->rowCount(); ++i) {
+			auto currentMenuTypeRecord = _menuTypeModel->record(i);
+			QString currentMenuTypeRecordName = currentMenuTypeRecord.value(1).toString();
+
+			if (currentMenuTypeRecordName == oldTypeName) {
+				currentMenuTypeRecord.setValue(1, newTypeName);// 更新菜品种类名
+				currentMenuTypeRecord.setValue(2, typeNum);
+				_menuTypeModel->setRecord(i, currentMenuTypeRecord);
+			}
+		}
+		bool ret = _menuTypeModel->submitAll();
+		if (!ret) {
+			qDebug() << "更新菜品种类时更新数据库出错！" << _menuTypeModel->lastError().text();
+			QMessageBox::critical(this, "更新数据库出错", "更新菜品种类时更新数据库出错！");
+		}
 
 		// 构造Operation
 		MenuTypeOperation *delOperation = new MenuTypeOperation(MenuTypeOperationType::DeleteType, oldTypeName);
@@ -1169,6 +1213,11 @@ void ServerMainWindow::slotEditType(const QString oldTypeName, const QString new
 																   currentDishRecordPrice, currentDishRecordPhoto, false);
 				_operations.push_back(updateOperation);
 			}
+		}
+		bool retModel = _model->submitAll();
+		if (!retModel) {
+			qDebug() << "更新菜品种类时更新数据库出错！" << _model->lastError().text();
+			QMessageBox::critical(this, "更新数据库出错", "更新菜品种类时更新数据库出错！");
 		}
 		_dishes.clear();// 清除菜品缓存，保证新客户端连接时获取最新的菜单
 	}
