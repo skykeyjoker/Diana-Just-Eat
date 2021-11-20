@@ -1147,7 +1147,30 @@ void ServerMainWindow::slotEditType(const QString oldTypeName, const QString new
 		_operations.push_back(addOperation);
 		_operations.push_back(updateOperation);
 
-		// TODO 是否有必要替用户把旧品种包含的菜品的相关信息也更新一下？
+		// 更新菜品，将旧品种名称改为新品种名称
+		for (int i = 0; i < _model->rowCount(); i++) {
+			auto currentDishRecord = _model->record(i);
+			QString currentDishRecordName = currentDishRecord.value(1).toString();
+			QString currentDishRecordType = currentDishRecord.value(2).toString();
+			QString currentDishRecordInfo = currentDishRecord.value(3).toString();
+			double currentDishRecordPrice = currentDishRecord.value(4).toDouble();
+			QString currentDishRecordPhoto = currentDishRecord.value(5).toString();
+
+			if (currentDishRecordType == oldTypeName) {
+				// 旧菜品种类名称
+
+				// 更新Record
+				currentDishRecord.setValue(2, newTypeName);
+				_model->setRecord(i, currentDishRecord);
+
+				// 构造操作Operation
+				MenuOperation *updateOperation = new MenuOperation(MenuOperationType::UpdateDish, currentDishRecordName,
+																   newTypeName, currentDishRecordInfo,
+																   currentDishRecordPrice, currentDishRecordPhoto, false);
+				_operations.push_back(updateOperation);
+			}
+		}
+		_dishes.clear();// 清除菜品缓存，保证新客户端连接时获取最新的菜单
 	}
 
 
