@@ -254,7 +254,105 @@
 
 ### 项目截图：
 
-（写完再放）
+服务端——订单界面：
+
+<img src="/Screenshots/server1.jpg" title="服务端——订单界面" style="zoom:70%;" />
+
+
+
+服务端——订单查看：
+
+<img src="/Screenshots/server2.jpg" title="服务端——查看订单" style="zoom:70%;" />
+
+
+
+服务端——历史订单查看：
+
+<img src="/Screenshots/server3.jpg" title="服务端——历史订单查看" style="zoom:70%;" />
+
+
+
+服务端——历史订单查看（显示之前）：
+
+<img src="/Screenshots/server4.jpg" title="服务端——历史订单查看" style="zoom:70%;" />
+
+
+
+服务端——历史订单查看（显示之间）：
+
+<img src="/Screenshots/server5.jpg" title="服务端——历史订单查看" style="zoom:70%;" />
+
+
+
+服务端——历史订单图表（年销售量）：
+
+<img src="/Screenshots/server6.jpg" title="服务端——历史订单图表（年销售量）" style="zoom:70%;" />
+
+
+
+服务端——历史订单图表（月销售量）：
+
+<img src="/Screenshots/server7.jpg" title="服务端——历史订单图表（月销售量）" style="zoom:70%;" />
+
+
+
+服务端——历史订单图表（日销售量）：
+
+<img src="/Screenshots/server8.jpg" title="服务端——历史订单图表（日销售量）" style="zoom:70%;" />
+
+
+
+服务端——菜单界面：
+
+<img src="/Screenshots/server9.jpg" title="服务端——菜单界面" style="zoom:70%;" />
+
+
+
+服务端——编辑菜品：
+
+<img src="/Screenshots/server10.jpg" title="服务端——编辑菜品" style="zoom:70%;" />
+
+
+
+服务端——添加菜品：
+
+<img src="/Screenshots/server11.jpg" title="服务端——添加菜品" style="zoom:70%;" />
+
+
+
+服务端——编辑菜品种类：
+
+<img src="/Screenshots/server12.jpg" title="服务端——编辑菜品种类"  />
+
+
+
+服务端——设置：
+
+<img src="/Screenshots/server13.jpg" title="服务端——设置" style="zoom:70%;" />
+
+
+
+客户端——主界面：
+
+<img src="/Screenshots/client1.jpg" title="客户端——主界面" style="zoom:70%;" />
+
+
+
+客户端——购物车：
+
+<img src="/Screenshots/client2.jpg" title="客户端——购物车" />
+
+
+
+客户端——订单结算：
+
+<img src="/Screenshots/client3.jpg" title="客户端——订单结算"/>
+
+
+
+客户端——设置：
+
+<img src="/Screenshots/client4.jpg" title="客户端——设置"/>
 
 
 ------
@@ -265,11 +363,11 @@
 
 服务端主要由三个Tab组成，分别对应着实时订单接收与处理、查看历史订单，查看修改菜单信息，修改服务器配置四个功能。
 
-服务端主要涉及Tcp操作与MySql、Sqlite以及Http操作。服务端使用Tcp实时与客户端进行信息交换；使用远程MySql存取菜单数据；使用本地Sqlite存取历史订单。服务端将图片存在远程Http服务器中，方便客户端与服务端同时访问。
+服务端主要涉及Tcp操作、Sqlite以及Http操作。服务端使用Tcp实时与客户端进行信息交换；使用本地Sqlite存取菜单数据； 使用本地Sqlite存取历史订单。服务端将图片存在本地Http服务器中，方便客户端与服务端同时访问。
 
-MySql结构如下：
+菜单数据结构如下：
 
-```mysql
+```sqlite
 .DataBase: Ordering-Sytem
 .TABLES: menu, menuType, config
 /menu       --菜品数据 
@@ -280,53 +378,21 @@ MySql结构如下：
 (ID INT PRIMARY KEY AUTOINCREMENT, TypeName Text, Num Text)
 ```
 
-Sqlite结构如下：
+订单数据结构如下：
 
-```mysql
+```sqlite
 .DataBase: orders.db
 .TABLES: orders
 /orders   --历史订单
   |-ID-|-OrderNum-|-TableNum-|-OrderPrice-|-OrderContent-|-OrderNote-|
-(ID INTEGER PRIMARY KEY AUTOINCREMENT, OrderNum TEXT, OrderTabelNum TEXT, OrderPrice DOUBLE, OrderContent TEXT, OrderNote TEXT)
+(ID INTEGER PRIMARY KEY AUTOINCREMENT, OrderNum TEXT, OrderTableNum TEXT, OrderPrice DOUBLE, OrderContent TEXT, OrderNote TEXT)
 ```
 
-Http服务器目录结构如下：
-
-```
-\upload
- ---1.jpg
- ---2.jpg
-upload_file.php
-update.php
-```
+利用第三方库实现一个简易HTTP WEB服务器，将本地`Pic`目录中的文件夹设为Web服务器根目录。
 
 #### 实时订单接收与处理
 
-服务端程序启动后，会创建名为*_tcpServer*的Tcp服务端，并使用`_tcpServer->listen(QHostAddress::Any, _tcpPort)`启动监听（*_tcpPort*
-来自于配置文件）。并通过`connect(_tcpServer,&QTcpServer::newConnection,this,&ServerMainWindow::slotNewConnection)`
-绑定信号与槽，当有客户端连接时，调用*slotNewConnection*()方法。
-
-*slotNewConnection()*将会通过`while(_tcpServer->hasPendingConnections())`判断是否有未处理的连接，将新的socket连接存入*QList<QTcpSocket \* >*
-类型的*_tcpSocket*中。并使用`connect(currentSocket,&QTcpSocket::readyRead,this,&ServerMainWindow::slotReadyRead)`为新的scoket提供槽函数*
-slotReadyRead()*，来接受数据。
-
-*slotReadyRead()*循环`readAll()`接收数据。数据格式如下：
-
-> A03;125;[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香肉丝:1];希望能好吃。
-
-依次为：**桌号;订单内容;订单总价格;订单备注**。可见，不同数据段通过英文标点`;`分隔。因此可用*QString*类中自带的`QString::section()`进行分割。分割好的消息填入名为*_table_Orders*的*
-QTableWidget*中。并同时更新订单统计信息:`_OrdersCount++;`，`_OrdersNoCount++;`。*_OrdersCount*存储**总订单数**，*_OrdersNoCount*存储未处理订单数。
-
-订单号共有19位数字，格式如下：
-
-> 2020052918563100001
-> 2020052918563199999
-
-固定前缀依次为：**年月日小时分钟秒**（共14位）
-
-后缀为：**00000-99999**（共5位）
-
-点击*btnHandle*和*btnReHandle*按钮将处理或者重新处理订单。处理和重新处理订单时应判断一下*_table_Orders*是否已选中一行。
+服务端启动后，调用`startTcpServer()`方法建立起TCP服务端，共有两个TCP Server，一个是订单菜单信道，一个是状态信道。
 
 订单受到处理后，启动一个*QTimer*:`clearTimer->start(_clearShot*1000);`，并将QTimer设置为单次执行`clearTimer->setSingleShot(true); `。在规定好的*_
 clearShot*时间后将订单从*_table_Orders*中删除并存入本地Sqlite数据库即历史订单数据库中。删除功能目前采用遍历*_table_Orders*的方法来删除指定订单。
@@ -334,61 +400,9 @@ clearShot*时间后将订单从*_table_Orders*中删除并存入本地Sqlite数�
 再讲一下界面控件相关细节问题。
 
 1. 订单查看通过重写的*QDialog*类的继承类*DialogOrdersViewer*来查看。通过参数传递，支持查看订单状态，订单单号，订单桌号，订单内容和订单备注。
-
 2. *_table_Orders*进行特殊配置。
-
-   ```cpp
-   //让“订单内容”和订单备注随拉伸变化
-   _table_Orders->horizontalHeader()->setSectionResizeMode(4,QHeaderView::Stretch);
-   _table_Orders->horizontalHeader()->setSectionResizeMode(5,QHeaderView::Stretch);
-   
-    //设置table属性
-   _table_Orders->setFocusPolicy(Qt::NoFocus);  //失去焦点，让_table_Orders在未选中前不能删除 
-   _table_Orders->setSelectionBehavior(QAbstractItemView::SelectRows); //设置选择行行为，以行为单位    
-   _table_Orders->setSelectionMode(QAbstractItemView::SingleSelection); //设置选择模式，选择单行 
-   _table_Orders->setEditTriggers(QAbstractItemView::NoEditTriggers);  //设置为禁止编辑
-   ```
-
-
 3. 新订单声音提醒。
-
-   ```cpp
-   //Sound
-   sound = new QSound(":/Res/clock.wav");
-   
-   //接收到新订单时：
-   sound->play();
-   ```
-
-
 4. 状态栏信息更新问题。通过以下方式初始化订单栏。
-
-   ``` cpp
-   // Status Bar
-   labelOrdersNoCount = new QLabel(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)),this);
-   labelOrdersCount = new QLabel(tr("总订单数：%1").arg(QString::number(_OrdersCount)),this);
-   labelTime = new QLabel(getFormatTimeStamp("yyyy-MM-dd hh:mm:ss"),this);
-   
-   ui->statusbar->addPermanentWidget(labelOrdersNoCount);
-   ui->statusbar->addPermanentWidget(labelOrdersCount);
-   ui->statusbar->addPermanentWidget(labelTime);
-   //启动计时器
-   timer = new QTimer(this);
-   connect(timer,&QTimer::timeout,[=](){
-       labelTime->setText(getFormatTimeStamp("yyyy-MM-dd hh:mm:ss"));
-   });
-   timer->start(1000);
-   
-   //接收到新订单时：
-   //更新订单统计信息
-   _OrdersCount++; //总订单数加1
-   _OrdersNoCount++; //未处理订单数加1
-   
-   //更新状态栏
-   ui->statusbar->showMessage("有新的订单！",2000);
-   labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
-   labelOrdersCount->setText(tr("总订单数：%1").arg(QString::number(_OrdersCount)));
-   ```
 
 #### 历史订单查看
 
@@ -415,145 +429,41 @@ clearShot*时间后将订单从*_table_Orders*中删除并存入本地Sqlite数�
 
 ###### 增
 
-单击增加菜品按钮，加载*DialogAddRecord*界面类进行菜品添加。将图片文件转存到本地缓存，上传到Http服务器。
+单击增加菜品按钮，加载*DialogAddRecord*界面类进行菜品添加。将图片文件转存到本地缓存。
 
 ###### 删
 
-单击删除菜品按钮，判断是否选中行后，使用*QSqlTableModel*的`removeRow()`方法删除数据库记录。删除本地图片文件缓存和Http服务器对应文件。
+单击删除菜品按钮，判断是否选中行后，使用*QSqlTableModel*的`removeRow()`方法删除数据库记录。删除本地图片文件缓存。
 
 ###### 改
 
-单击修改菜品按钮，判断是否选中行后，加载*DialogEditRecord*界面类进行菜品修改。若图片更改，删除旧的本地图片缓存和Http服务器旧的图片文件，将新的图片转存到本地缓存并上传到Http服务器。
+单击修改菜品按钮，判断是否选中行后，加载*DialogEditRecord*界面类进行菜品修改。若图片更改，删除旧的本地图片缓存，将新的图片转存到本地缓存。
 
 ##### 非核心的关键功能
 
-###### 服务端本地图片缓存
-
-使用*QDir*和*QFile*封装类，将增、改的图片拷贝到程序运行目录下的`/Pic`图片缓存目录下。文件名与菜品名同名。
-
-###### 服务端远程图片储存
-
-使用*HttpFileUpload*类和*HttpFileUpdate*类进行图片文件上传和删除更新。
-
-*upload_file.php*文件内容如下：
-
-```php
-<?php
-// 允许上传的图片后缀
-$allowedExts = array("gif", "jpeg", "jpg", "png");
-$temp = explode(".", $_FILES["file"]["name"]);
-echo $_FILES["file"]["size"];
-$extension = end($temp);     // 获取文件后缀名
-if ((($_FILES["file"]["type"] == "image/gif")
-|| ($_FILES["file"]["type"] == "image/jpeg")
-|| ($_FILES["file"]["type"] == "image/jpg")
-|| ($_FILES["file"]["type"] == "image/pjpeg")
-|| ($_FILES["file"]["type"] == "image/x-png")
-|| ($_FILES["file"]["type"] == "image/png"))
-&& ($_FILES["file"]["size"] < 5242880)   // 小于 5mb
-&& in_array($extension, $allowedExts))
-{
-    if ($_FILES["file"]["error"] > 0)
-    {
-        echo "错误：: " . $_FILES["file"]["error"] . "<br>";
-    }
-    else
-    {
-        echo "上传文件名: " . $_FILES["file"]["name"] . "<br>";
-        echo "文件类型: " . $_FILES["file"]["type"] . "<br>";
-        echo "文件大小: " . ($_FILES["file"]["size"] / 1024) . " kB<br>";
-        echo "文件临时存储的位置: " . $_FILES["file"]["tmp_name"] . "<br>";
-        
-        // 判断当前目录下的 upload 目录是否存在该文件
-        // 如果没有 upload 目录，你需要创建它，upload 目录权限为 777
-        if (file_exists("upload/" . $_FILES["file"]["name"]))
-        {
-            echo $_FILES["file"]["name"] . " 文件已经存在。 ";
-        }
-        else
-        {
-            // 如果 upload 目录不存在该文件则将文件上传到 upload 目录下
-            move_uploaded_file($_FILES["file"]["tmp_name"], "upload/" . $_FILES["file"]["name"]);
-            echo "文件存储在: " . "upload/" . $_FILES["file"]["name"];
-        }
-    }
-}
-else
-{
-    echo "非法的文件格式";
-}
-?>
-```
-
-*update.php*文件内容如下：
-
-```php
-<?php
-    $file_name = $_POST['file_name'];
-    $path = 'upload';
-    $result = 0;
-
-    if(file_exists($path.'/'.$file_name))
-    {
-        $result = unlink($path.'/'.$file_name);
-    }
-    else
-    {
-        $result = 1;
-    }
-
-    return $result;
-?>
-```
-
 ###### 向客户端发送更新菜单消息
 
-当服务端修改菜单数据库后，发送`sendMenuUpdateSignal()`消息，调用匹配好的槽函数`slotSendMenuUpdateMessage()`
-向客户端发送消息。应使用循环`for(int i=0; i<_tcpSocket.size(); i++)`向全部在线客户端发送消息：
-
-```cpp
-QTcpSocket *currentSocket;
-
-for(int i=0; i<_tcpSocket.size(); i++)
-{
-    currentSocket = _tcpSocket.at(i);
-    currentSocket->write(QString("[Menu Updated]").toUtf8());
-}
-```
+当服务端修改菜单数据库后，使用`generateUpdatedMenu()`方法生成菜单更新消息，发送至所有在线客户端。
 
 #### 修改服务器配置
 
 在*tab_Settings*中对服务器配置进行修改。主要有以下配置的修改：
 
-* MySql数据库配置
-    * MySql服务器地址
-    * MySql服务器端口
-    * MySql数据库名称
-    * MySql数据库用户名
-    * MySql数据库密码
-* 图片HTTP服务器配置
-
-    * HTTP服务端地址
 * TCP设置
     * TCP服务端IP
-    * TCP服务端端口
+    * TCP服务端菜单订单端口
+    * TCP服务端状态信道端口
 
-  其中，MySql与HTTP配置储存在目录下的*config.json*文件中。json文件的读写吗，使用自己封装的*WriteJson*类和*ReadJson*类实现。为了保证安全性，json文件中的部分内容使用自己封装的**
-  异或加密解密**（不能保证完全安全） *EncryptDecrypt*类加密解密。
+其中，配置储存在目录下的*config.json*文件中。
 
 *config.json*文件内容如下：
 
 ```json
 {
   "clearShot": 30,
-  "dbHost": "dbHost",
-  "dbName": "dbName",
-  "dbPasswd": "dbPasswd",
-  "dbPort": 3306,
-  "dbUser": "dbUser",
-  "picHost": "picHost",
   "tcpHost": "127.0.0.1",
-  "tcpPort": 8081
+  "tcpPort": 8081,
+  "tcpStatusPort": 8082
 }
 ```
 
