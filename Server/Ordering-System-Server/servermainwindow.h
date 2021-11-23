@@ -83,8 +83,9 @@ private:
 private:
 	// Menu Tab
 	QTableView *_view_Menu;
-	QSqlTableModel *_model;
-	QSqlTableModel *_menuTypeModel;
+	QSqlTableModel *_model;        // 菜品model
+	QSqlTableModel *_menuTypeModel;// 菜品种类model
+	QSqlTableModel *_ordersModel;  // 订单model
 
 	QList<QString> _menuTypeList;// 菜品种类列表
 	QString oldDishType;
@@ -105,7 +106,9 @@ private:
 	bool connectDb();//connect  to database
 
 	// DataBase Info
-	QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+	QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", "MenuSqlite");
+
+	QSqlDatabase ordersDb = QSqlDatabase::addDatabase("QSQLITE", "OrdersSqlite");
 
 private:
 	// TCP

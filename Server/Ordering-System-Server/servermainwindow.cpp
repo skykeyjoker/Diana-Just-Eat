@@ -68,28 +68,44 @@ void ServerMainWindow::loadSetting() {
 }
 
 bool ServerMainWindow::connectDb() {
+	// 连接数据库
+
+	// 连接菜单数据库
 	db.setDatabaseName("MenuInfo.db");
-
 	bool dbRet = db.open();
-
 	if (!dbRet) {
-		qDebug() << "数据库连接失败" << db.lastError().text();
+		qDebug() << "菜单数据库连接失败" << db.lastError().text();
 		return false;
 	} else
-		qDebug() << "数据库连接成功";
+		qDebug() << "菜单数据库连接成功";
+
+	// 连接订单数据库
+	ordersDb.setDatabaseName("orders.db");
+	bool ordersDbRet = ordersDb.open();
+	if (!ordersDbRet) {
+		qDebug() << "订单数据库连接失败" << ordersDb.lastError().text();
+	} else
+		qDebug() << "订单数据库连接成功";
 
 	// 设置QSqlModel
 	// menu表
-	_model = new QSqlTableModel;
+	_model = new QSqlTableModel(this, db);
 	_model->setTable("Menu");
 	_model->select();
 	_model->setEditStrategy(QSqlTableModel::OnManualSubmit);//设置提交策略
 
 	// menuType表
-	_menuTypeModel = new QSqlTableModel;
+	_menuTypeModel = new QSqlTableModel(this, db);
 	_menuTypeModel->setTable("MenuType");
 	_menuTypeModel->select();
-	_model->setEditStrategy(QSqlTableModel::OnManualSubmit);
+	_menuTypeModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
+
+	// Orders表
+	_ordersModel = new QSqlTableModel(this, ordersDb);
+	qDebug() << _ordersModel->database();
+	_ordersModel->setTable("Orders");
+	_ordersModel->select();
+	_ordersModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
 
 	// 遍历menuType表初始化_menuTypeList
 	for (int i = 0; i < _menuTypeModel->rowCount(); i++) {
@@ -398,8 +414,8 @@ void ServerMainWindow::slotQueryMenu(QTcpSocket *target) {
 	tcpServer->sendMenu(target, sendData);
 }
 
-// TODO 此处重写为订单到达槽
 void ServerMainWindow::slotNewOrder(const QByteArray &menu) {
+	// 订单到达处理
 	qDebug() << "收到新订单" << menu;
 	using Json = nlohmann::json;
 	Json menuJson;
@@ -588,9 +604,6 @@ void ServerMainWindow::slotBtnTypeEditClicked() {
 	DialogEditMenuType *dlg = new DialogEditMenuType(_menuTypeNumHash, this);
 	dlg->show();
 
-	//void sigAddNewType(const QString typeName, const int typeNum);
-	//void sigEditType(const QString oldTypeName, const QString newTypeName, const int typeNum);
-	//void sigDelType(const QString typeName);
 	connect(dlg, qOverload<const QString, const int>(&DialogEditMenuType::sigAddNewType),
 			this, qOverload<const QString, const int>(&ServerMainWindow::slotAddNewType));
 	connect(dlg, qOverload<const QString, const QString, const int>(&DialogEditMenuType::sigEditType),
@@ -863,7 +876,6 @@ void ServerMainWindow::slotRevBtnClicked() {
 
 void ServerMainWindow::slotBtnHistoryClicked() {
 	// 历史订单查看
-	// TODO 新的重构大山，完善图表功能
 	DialogHistoryViewer *dlg = new DialogHistoryViewer;
 
 	dlg->exec();
@@ -871,7 +883,6 @@ void ServerMainWindow::slotBtnHistoryClicked() {
 
 void ServerMainWindow::slotBtnReHandleClicked() {
 	// 订单重新处理
-	// TODO 检查订单是否需要重新处理
 	if (_table_Orders->currentIndex().row() == -1)//判断是否选中一行
 	{
 		QMessageBox::critical(this, "处理失败", "未选中任何行!");
@@ -884,10 +895,16 @@ void ServerMainWindow::slotBtnReHandleClicked() {
 		return;
 	}
 
+	if (_table_Orders->item(_table_Orders->currentIndex().row(), 0)->text() == "待重新处理")//判断该订单是否已处理
+	{
+		QMessageBox::critical(this, "处理失败", "该订单已在重新处理状态!");
+		return;
+	}
+
 	int currentRow = _table_Orders->currentRow();//获取一下当前行
 	int ret = QMessageBox::question(this, "请求确认", tr("您确认要重新处理该订单吗？\n该订单的订单号: %1\n桌号: %2").arg(_table_Orders->item(currentRow, 1)->text()).arg(_table_Orders->item(currentRow, 2)->text()));
 	if (ret == QMessageBox::Yes) {
-		_table_Orders->setItem(currentRow, 0, new QTableWidgetItem("未处理"));
+		_table_Orders->setItem(currentRow, 0, new QTableWidgetItem("待重新处理"));
 
 		//更新订单统计信息
 		_OrdersNoCount++;//未处理订单数加1
@@ -898,13 +915,13 @@ void ServerMainWindow::slotBtnReHandleClicked() {
 }
 
 void ServerMainWindow::slotBtnHandleClicked() {
-	// TODO 订单处理事件检查是否需要重构
 	/* 订单处理
      * 先将该订单状态修改
      * 更新状态栏订单信息
      * 将该订单存入本地历史菜单数据库
      * 设定时间后删除该订单
     */
+	bool reHandled = false;
 
 	if (_table_Orders->currentIndex().row() == -1)//判断是否已经选中一行
 	{
@@ -912,12 +929,17 @@ void ServerMainWindow::slotBtnHandleClicked() {
 		return;
 	}
 
-	if (_table_Orders->item(_table_Orders->currentIndex().row(), 0)->text() != "未处理")//判断该订单是否已经处理
+	if (_table_Orders->item(_table_Orders->currentIndex().row(), 0)->text() != "未处理" && _table_Orders->item(_table_Orders->currentIndex().row(), 0)->text() != "待重新处理")// 判断该订单是否已经处理
 	{
 		QMessageBox::critical(this, "处理失败", "该订单已经处理!");
 		return;
 	}
+	if (_table_Orders->item(_table_Orders->currentIndex().row(), 0)->text() == "待重新处理")// 重新处理订单
+	{
+		reHandled = true;
+	}
 
+	qDebug() << "处理订单";
 	int currentRow = _table_Orders->currentRow();//获取一下当前订单的总行数
 
 	/* 暴力做法，现在就先存一下该栏信息,后面遍历匹配删除 */
@@ -933,31 +955,37 @@ void ServerMainWindow::slotBtnHandleClicked() {
 		//更新状态栏
 		labelOrdersNoCount->setText(tr("未处理订单数：%1").arg(QString::number(_OrdersNoCount)));
 
+		// 判断是否为重新处理的订单
+		if (!reHandled) {
+			qDebug() << "未处理的订单";
+			// 未处理的订单，需要将数据插入到订单数据库中
+			auto currentOrderRecord = _ordersModel->record();
+			QString currentOrderRecordNum = _table_Orders->item(currentRow, 1)->text();
+			QString currentOrderRecordTable = _table_Orders->item(currentRow, 2)->text();
+			double currentOrderRecordPrice = _table_Orders->item(currentRow, 3)->text().toDouble();
+			QString currentOrderRecordContent = _table_Orders->item(currentRow, 4)->text();
+			QString currentOrderRecordNote = _table_Orders->item(currentRow, 5)->text();
 
-		//添加该订单到本地数据库
-		//建立数据连接
-		QSqlDatabase tmpDb = QSqlDatabase::addDatabase("QSQLITE", "tmpSqlite");
-		//设置数据库文件名
-		QString dbPath = QDir::currentPath() + "/" + "orders.db";
-		tmpDb.setDatabaseName(dbPath);
+			currentOrderRecord.setNull(0);
+			currentOrderRecord.setValue(1, currentOrderRecordNum);
+			currentOrderRecord.setValue(2, currentOrderRecordTable);
+			currentOrderRecord.setValue(3, currentOrderRecordPrice);
+			currentOrderRecord.setValue(4, currentOrderRecordContent);
+			currentOrderRecord.setValue(5, currentOrderRecordNote);
+			_ordersModel->insertRecord(_ordersModel->rowCount(), currentOrderRecord);
+			bool submitRet = _ordersModel->submitAll();
+			if (!submitRet) {
+				qDebug() << "订单存入数据库失败" << _ordersModel->lastError().text();
+				QMessageBox::critical(this, "订单处理失败", "订单存入数据库时发生错误！");
+			} else {
+				qDebug() << "存入新订单：" << currentOrderRecord;
+			}
+		}
 
-		if (tmpDb.open()) {
-			qDebug() << "sqlite数据库连接成功";
-		} else
-			qDebug() << "sqlite数据库连接失败" << tmpDb.lastError().text();
-
-		QSqlQuery tmpQuery(tmpDb);
-		//使用sql的insert语句插入数据
-		bool rret = tmpQuery.exec(tr("INSERT INTO Orders VALUES(NULL,'%1','%2',%3,'%4','%5');").arg(_table_Orders->item(currentRow, 1)->text()).arg(_table_Orders->item(currentRow, 2)->text()).arg(_table_Orders->item(currentRow, 3)->text()).arg(_table_Orders->item(currentRow, 4)->text()).arg(_table_Orders->item(currentRow, 5)->text()));
-		//bool rret = tmpQuery.exec("INSERT INTO Orders VALUES(NULL,'2019053114563100002','A03',125,'[宫保鸡丁:1],[老八小汉堡:2],[扬州炒饭:2],[鱼香  丝:1]','希望能好吃');");
-		qDebug() << rret;
-		//关闭本地数据库
-		tmpDb.close();
-
+		// 重新处理的订单跳过插入数据库环节
 
 		//QTimer 让已处理的订单定时消失
 		QTimer *clearTimer = new QTimer(this);
-
 
 		connect(clearTimer, &QTimer::timeout, [=]() {
 			//绑定QTimer的timeout信号，到规定时间开始处理
@@ -965,7 +993,7 @@ void ServerMainWindow::slotBtnHandleClicked() {
 			{
 				if (_table_Orders->item(i, 1) == currentItemOrderNum)//找到对应行，进行删除
 				{
-					if (_table_Orders->item(i, 0)->text() != "未处理") {
+					if (_table_Orders->item(i, 0)->text() != "未处理" && _table_Orders->item(i, 0)->text() != "待重新处理") {
 						_table_Orders->removeRow(i);
 						break;
 						qDebug() << tr("清除第%1行").arg(QString::number(i));
